@@ -1,7 +1,6 @@
 ## // Pet Store
 ##
 
-from adaptive import sample_rpc
 from adaptive.typecheck import assertListOf
 
 ## module PetStore {
@@ -95,9 +94,3 @@ class PetStore_server(object):
         return res
 
 ## };
-
-
-def serve_forever(impl):
-    server = PetStore_server(impl)
-    sample_rpc.add_instance(service_name, server)
-    sample_rpc.serve_forever()
