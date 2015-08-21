@@ -1,0 +1,33 @@
+// Pet Store
+
+module PetStore {
+    desc "A sample API that uses a petstore as an example to demonstrate features in the Adaptive specification";
+
+    defaults {
+        extbase "http://127.0.0.1:8080/PetStore";
+    };
+
+    struct Pet {
+        int64 id;
+        string name;
+        string tag = null;
+    };
+
+    Array<Pet> findPets(List<string> tags = null, int32 limit = null) {
+        desc "Returns all pets from the system that the user has access to";
+        ext "http://example.com/PetStore/findPets";  // Override default
+    };
+
+    Pet addPet(NewPet pet) {
+        desc "Creates a new pet in the store. Duplicates are allowed";
+    };
+
+    Pet findPetById(int64 id) throw {
+        desc "Returns a pet based on the ID supplied";
+    };
+
+    void deletePet(int64 id) throw {
+        desc "deletes a single pet based on the ID supplied";
+    };
+
+};
