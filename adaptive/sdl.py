@@ -7,6 +7,16 @@ class AST:
         if not hasattr(self, "node"):
             self.node = node
 
+    def traverse(self, visitor):
+        visit = getattr(visitor, "visit_%s" % self.__class__.__name__, lambda s: None)
+        leave = getattr(visitor, "leave_%s" % self.__class__.__name__, lambda s: None)
+        visit(self)
+        if self.children:
+            for c in self.children:
+                if c is not None:
+                    c.traverse(visitor)
+        leave(self)
+
 def joindent(items):
     st = "\n".join(map(str, items))
     if st:
@@ -20,6 +30,10 @@ class Module(AST):
         self.name = name
         self.definitions = definitions
 
+    @property
+    def children(self):
+        return self.definitions
+
     def __str__(self):
         return "module %s {%s}" % (self.name, joindent(self.definitions))
 
@@ -28,6 +42,10 @@ class Struct(AST):
     def __init__(self, name, fields):
         self.name = name
         self.fields = fields
+
+    @property
+    def children(self):
+        return self.fields
 
     def __str__(self):
         return "struct %s {%s}" % (self.name, joindent(self.fields))
@@ -38,6 +56,10 @@ class Fieldish(AST):
         self.name = name
         self.type = type
         self.default = default
+
+    @property
+    def children(self):
+        yield self.type
 
     def __str__(self):
         if self.default:
@@ -60,6 +82,12 @@ class Operation(AST):
         self.parameters = parameters
         self.type = type
 
+    @property
+    def children(self):
+        yield self.type
+        for p in self.parameters:
+            yield p
+
     def __str__(self):
         return "%s %s(%s);" % (self.type, self.name, ", ".join(map(str, self.parameters)))
 
@@ -68,6 +96,10 @@ class Type(AST):
     def __init__(self, name, parameters=None):
         self.name = name
         self.parameters = parameters
+
+    @property
+    def children(self):
+        return self.parameters
 
     def __str__(self):
         if self.parameters:
@@ -201,3 +233,21 @@ if __name__ == "__main__":
     print m
     m = SDL().parse(open("examples/petstore/petstore.sdl").read())
     print m
+
+    class Visitor:
+
+        def visit_Module(self, m):
+            print "## module %s {" % m.name
+        def leave_Module(self, m):
+            print "## };"
+
+        def visit_Struct(self, s):
+            print "##   struct %s {" % s.name
+
+        def visit_Field(self, f):
+            print "##     %s %s;" % (f.type, f.name)
+
+        def leave_Struct(self, m):
+            print "##   };"
+
+    m.traverse(Visitor())
