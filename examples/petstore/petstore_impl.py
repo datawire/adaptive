@@ -20,12 +20,13 @@ class PetStore(object):
         self.pets = set()
         self.next_id = 0
 
-    def findPets(self, tags=[], limit=None):
+    def findPets(self, tags=None, limit=None):
         "Returns all pets from the system that the user has access to"
-        tags = set(tags)
+        if tags is not None:
+            tags = set(tags)
         res = []
         for pet in self.pets:
-            if not tags or pet.tag in tags:
+            if tags is None or pet.tag in tags:
                 res.append(pet)
                 if limit is not None and len(res) >= limit:
                     break
