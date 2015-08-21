@@ -64,9 +64,9 @@ class ServiceRequestHandler(BaseHTTPRequestHandler):
 def add_instance(name, instance):
     ServiceRequestHandler.services[name] = instance
 
-def serve_forever():
-    port = int(os.environ.get("SERVER_PORT", 8080))
-    server = HTTPServer(("0.0.0.0", port), ServiceRequestHandler)
+def serve_forever(host="0.0.0.0", port=8080):
+    port = int(os.environ.get("SERVER_PORT", port))
+    server = HTTPServer((host, port), ServiceRequestHandler)
     server.serve_forever()
 
 
