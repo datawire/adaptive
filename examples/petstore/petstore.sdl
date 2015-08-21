@@ -13,7 +13,7 @@ module PetStore {
         string tag = null;
     };
 
-    Array<Pet> findPets(List<string> tags = null, int32 limit = null) {
+    List<Pet> findPets(List<string> tags = null, int32 limit = null) {
         desc "Returns all pets from the system that the user has access to";
         ext "http://example.com/PetStore/findPets";  // Override default
     };
@@ -22,11 +22,11 @@ module PetStore {
         desc "Creates a new pet in the store. Duplicates are allowed";
     };
 
-    Pet findPetById(int64 id) throw {
+    Pet findPetById(int64 id) {
         desc "Returns a pet based on the ID supplied";
     };
 
-    void deletePet(int64 id) throw {
+    void deletePet(int64 id) {
         desc "deletes a single pet based on the ID supplied";
     };
 
