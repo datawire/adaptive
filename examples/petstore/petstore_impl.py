@@ -1,15 +1,6 @@
 # Pet Store
 
-class Pet(object):
-
-    def __init__(self, id_, name, tag=None):
-        self.id = id_
-        self.name = name
-        self.tag = tag
-
-    def __repr__(self):
-        return "<Pet %s: %s (%s)>" % (self.id, self.name, self.tag)
-
+from petstore_server import Pet
 
 class PetStore(object):
     """

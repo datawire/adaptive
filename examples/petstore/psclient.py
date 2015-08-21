@@ -30,10 +30,8 @@ def main():
     psclient(store)
 
 def main2():
-    from adaptive import sample_rpc
-    store = sample_rpc.Client("http://127.0.0.1:8080/PetStore")
-    psclient(store)
-
+    import PetStore
+    psclient(PetStore)
 
 if __name__ == "__main__":
     main()
