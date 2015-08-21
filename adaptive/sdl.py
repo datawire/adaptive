@@ -55,13 +55,13 @@ class Parameter(Fieldish):
 
 class Operation(AST):
 
-    def __init__(self, name, params, type):
+    def __init__(self, name, parameters, type):
         self.name = name
-        self.params = params
+        self.parameters = parameters
         self.type = type
 
     def __str__(self):
-        return "%s %s(%s);" % (self.type, self.name, ", ".join(map(str, self.params)))
+        return "%s %s(%s);" % (self.type, self.name, ", ".join(map(str, self.parameters)))
 
 class Type(AST):
 
