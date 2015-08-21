@@ -18,7 +18,7 @@ module PetStore {
         ext "http://example.com/PetStore/findPets";  // Override default
     };
 
-    Pet addPet(NewPet pet) {
+    Pet addPet(string name, string tag = null) {
         desc "Creates a new pet in the store. Duplicates are allowed";
     };
 
