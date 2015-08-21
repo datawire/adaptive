@@ -25,8 +25,8 @@ def psclient(store):
 
 
 def main():
-    import petstore
-    store = petstore.PetStore()
+    from petstore_impl import PetStore
+    store = PetStore()
     psclient(store)
 
 def main2():
