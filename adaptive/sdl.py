@@ -50,7 +50,7 @@ class Struct(AST):
     def __str__(self):
         return "struct %s {%s}" % (self.name, joindent(self.fields))
 
-class Fieldish(AST):
+class Declaration(AST):
 
     def __init__(self, name, type, default):
         self.name = name
@@ -67,12 +67,12 @@ class Fieldish(AST):
         else:
             return "%s %s" % (self.type, self.name)
 
-class Field(Fieldish):
+class Field(Declaration):
 
     def __str__(self):
-        return Fieldish.__str__(self) + ";"
+        return Declaration.__str__(self) + ";"
 
-class Parameter(Fieldish):
+class Parameter(Declaration):
     pass
 
 class Operation(AST):
@@ -228,6 +228,7 @@ if __name__ == "__main__":
       List<A, B> funge(int a, int b);
       List<A> funge(int a);
       void funge();
+      List<A<B, C>> funge(int a = null);
     };
     """)
     print m
@@ -243,11 +244,12 @@ if __name__ == "__main__":
 
         def visit_Struct(self, s):
             print "##   struct %s {" % s.name
-
         def visit_Field(self, f):
             print "##     %s %s;" % (f.type, f.name)
-
         def leave_Struct(self, m):
             print "##   };"
+
+        def visit_Operation(self, o):
+            print "##   %s %s(%s);" % (o.type, o.name, ", ".join(str(p) for p in o.parameters))
 
     m.traverse(Visitor())
