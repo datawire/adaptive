@@ -50,6 +50,16 @@ class Struct(AST):
     def __str__(self):
         return "struct %s {%s}" % (self.name, joindent(self.fields))
 
+class Constant:
+
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return self.name
+
+null = Constant("null")
+
 class Declaration(AST):
 
     def __init__(self, name, type, default):
@@ -173,7 +183,10 @@ class SDL:
 
     @g.rule('literal = STRING / NULL')
     def visit_literal(self, node, (literal,)):
-        return literal
+        if literal is None:
+            return null
+        else:
+            return literal
 
     @g.rule('type = name (LA types RA)?')
     def visit_type(self, node, (name, params)):
