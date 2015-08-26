@@ -5,21 +5,22 @@ class ClientMaker(PyOutput):
 
     def __init__(self):
         PyOutput.__init__(self)
+        self.did_module_head = False
+        self.module_name = None
 
     def module(self, m):
         self.ref("module %s {" % m.name)
         self.ref_indent()
-
-        self.out("from adaptive import assertListOf as _assertListOf, sample_rpc as _sample_rpc")
-        self.out("")
-        self.out("""_remote_url = "http://127.0.0.1:8080/%s" """ % m.name)  # FIXME
-        self.out("_service = _sample_rpc.Client(_remote_url)")
+        self.module_name = m.name
 
         for definition in m.definitions:
             if definition is None: continue
             kind = definition.__class__.__name__
             if kind == "Description":
                 self.ref("""desc %s;""" % definition.content)
+                self.out('"""')
+                self.out(str(definition.content)[1:-1])
+                self.out('"""')
             elif kind == "Defaults":
                 self.ref("""defaults { %s };""" % "no content")
             elif kind == "Struct":
@@ -32,7 +33,19 @@ class ClientMaker(PyOutput):
         self.ref_dedent()
         self.ref("};")
 
+    def module_head(self):
+        if self.did_module_head:
+            return
+
+        self.out("from adaptive import assertListOf as _assertListOf, sample_rpc as _sample_rpc")
+        self.out("")
+        self.out("""_remote_url = "http://127.0.0.1:8080/%s" """ % self.module_name)  # FIXME
+        self.out("_service = _sample_rpc.Client(_remote_url)")
+
+        self.did_module_head = True
+
     def struct(self, s):
+        self.module_head()
         self.ref("struct %s {" % s.name)
         self.ref_indent()
         for field in s.fields:
@@ -43,6 +56,7 @@ class ClientMaker(PyOutput):
         self.out("""%s = _service._getClass("%s")""" % (s.py_name, s.name))
 
     def operation(self, o):
+        self.module_head()
         self.ref("%s %s(%s) {" % (o.type, o.name, ", ".join(str(p) for p in o.parameters)))
         self.ref_indent()
         # FIXME: Loop over contents of operation here, once they are parsed and available.

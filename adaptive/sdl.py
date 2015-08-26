@@ -61,7 +61,7 @@ class Description(AST):
         return []
 
     def __str__(self):
-        return "desc %r" % self.content
+        return "desc %s" % self.content
 
 class StringLiteral(AST):
 
