@@ -1,7 +1,7 @@
 ## // Pet Store
 ##
 
-from adaptive.typecheck import assertListOf
+from adaptive import assertListOf
 
 ## module PetStore {
 ##     desc "A sample API that uses a petstore as an example to demonstrate features in the Adaptive specification";

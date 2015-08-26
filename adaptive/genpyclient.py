@@ -1,6 +1,5 @@
 import sdl
-from typecheck import emitTypeCheck
-from genpython import Pythonize, PyOutput
+from python import Pythonize, PyOutput, emitTypeCheck
 
 class ClientMaker(PyOutput):
 
@@ -11,8 +10,7 @@ class ClientMaker(PyOutput):
         self.ref("module %s {" % m.name)
         self.ref_indent()
 
-        self.out("from adaptive import sample_rpc as _sample_rpc")
-        self.out("from adaptive.typecheck import assertListOf as _assertListOf")
+        self.out("from adaptive import assertListOf as _assertListOf, sample_rpc as _sample_rpc")
         self.out("")
         self.out("""_remote_url = "http://127.0.0.1:8080/%s" """ % m.name)  # FIXME
         self.out("_service = _sample_rpc.Client(_remote_url)")
