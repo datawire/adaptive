@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import sdl
-from python import Pythonize, PyOutput, emitTypeCheck
+from python import Pythonize, PyOutput, emitTypeCheck, process_declarations
 
 class ClientMaker(PyOutput):
 
@@ -60,30 +60,13 @@ class ClientMaker(PyOutput):
 
     def struct(self, s):
         self.module_head()
-        self.ref("struct %s {" % s.name)
-        self.ref_indent()
-        for field in s.fields:
-            self.ref(str(field))
-        self.ref_dedent()
-        self.ref("};")
-
+        self.ref_struct(s)
         self.out("""%s = _service._getClass("%s")""" % (s.py_name, s.name))
 
     def operation(self, o):
         self.module_head()
-        self.ref("%s %s(%s) {" % (o.type, o.name, ", ".join(str(p) for p in o.parameters)))
-        self.ref_indent()
-        # FIXME: Loop over contents of operation here, once they are parsed and available.
-        self.ref_dedent()
-        self.ref("};")
-
-        params = []
-        for parameter in o.parameters:
-            if parameter.default:
-                params.append("%s=%s" % (parameter.py_name, parameter.default.py_name))
-            else:
-                params.append(parameter.py_name)
-        self.out("def %s(%s):" % (o.py_name, ", ".join(params)))
+        self.ref_operation(o)
+        self.out("def %s(%s):" % (o.py_name, ", ".join(process_declarations(o.parameters))))
         self.indent()
         for parameter in o.parameters:
             has_null_default = parameter.default and parameter.default.py_name == "None"  # FIXME for non-string, non-null

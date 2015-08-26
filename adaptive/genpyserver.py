@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import sdl
-from python import Pythonize, PyOutput, emitTypeCheck
+from python import Pythonize, PyOutput, emitTypeCheck, process_declarations
 
 class ServerMaker(PyOutput):
 
@@ -65,24 +65,12 @@ class ServerMaker(PyOutput):
         self.module_head()
         assert not self.did_module_body, "Must have all structs before any functions (to be fixed)"
 
-        self.ref("struct %s {" % s.name)
-        self.ref_indent()
-        for field in s.fields:
-            self.ref(str(field))
-        self.ref_dedent()
-        self.ref("};")
+        self.ref_struct(s)
 
         self.out("class %s(object):" % s.py_name)
         self.out("")
         self.indent()
-        fields = []
-        for field in s.fields:
-            if field.default:
-                fields.append("%s=%s" % (field.py_name, field.default.py_name))
-            else:
-                fields.append(field.py_name)
-
-        self.out("def __init__(self, %s):" % ", ".join(fields))
+        self.out("def __init__(self, %s):" % ", ".join(process_declarations(s.fields)))
         self.indent()
         for field in s.fields:
             self.out("self.%s = %s" % (field.name, field.py_name))  # FIXME is this okay?
@@ -123,19 +111,9 @@ class ServerMaker(PyOutput):
 
     def operation(self, o):
         self.module_body()
-        self.ref("%s %s(%s) {" % (o.type, o.name, ", ".join(str(p) for p in o.parameters)))
-        self.ref_indent()
-        # FIXME: Loop over contents of operation here, once they are parsed and available.
-        self.ref_dedent()
-        self.ref("};")
+        self.ref_operation(o)
 
-        params = []
-        for parameter in o.parameters:
-            if parameter.default:
-                params.append("%s=%s" % (parameter.py_name, parameter.default.py_name))
-            else:
-                params.append(parameter.py_name)
-        self.out("def %s(self, %s):" % (o.py_name, ", ".join(params)))
+        self.out("def %s(self, %s):" % (o.py_name, ", ".join(process_declarations(o.parameters))))
         self.indent()
         for parameter in o.parameters:
             has_null_default = parameter.default and parameter.default.py_name == "None"  # FIXME for non-string, non-null

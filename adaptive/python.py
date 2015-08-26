@@ -65,6 +65,16 @@ class Pythonize(object):
         node.py_name = py_Typename(node.name)
 
 
+def process_declarations(declarations):
+    res = []
+    for declaration in declarations:
+        if declaration.default:
+            res.append("%s=%s" % (declaration.py_name, declaration.default.py_name))
+        else:
+            res.append(declaration.py_name)
+    return res
+
+
 class PyOutput(object):
     "Generate decent-looking Python code"
 
@@ -92,6 +102,21 @@ class PyOutput(object):
     def ref_dedent(self):
         assert self.ref_indent_level > 0, (self.ref_indent_level, "\n".join(self.lines))
         self.ref_indent_level -= 1
+
+    def ref_struct(self, st):
+        self.ref("struct %s {" % st.name)
+        self.ref_indent()
+        for field in st.fields:
+            self.ref(str(field))
+        self.ref_dedent()
+        self.ref("};")
+
+    def ref_operation(self, op):
+        self.ref("%s %s(%s) {" % (op.type, op.name, ", ".join(str(p) for p in op.parameters)))
+        self.ref_indent()
+        # FIXME: Loop over contents of operation here, once they are parsed and available.
+        self.ref_dedent()
+        self.ref("};")
 
     def dump(self, fd=sys.stdout):
         # Fancy print...
