@@ -18,8 +18,8 @@ class ClientMaker(PyOutput):
         for definition in m.definitions:
             if definition is None: continue
             kind = definition.__class__.__name__
-            if kind == "Desc":
-                self.ref("""desc "%s";""" % "no content")
+            if kind == "Description":
+                self.ref("""desc %s;""" % definition.content)
             elif kind == "Defaults":
                 self.ref("""defaults { %s };""" % "no content")
             elif kind == "Struct":
