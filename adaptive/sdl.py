@@ -51,6 +51,18 @@ class Struct(AST):
     def __str__(self):
         return "struct %s {%s}" % (self.name, joindent(self.fields))
 
+class Description(AST):
+
+    def __init__(self, content):
+        self.content = content
+
+    @property
+    def children(self):
+        return []
+
+    def __str__(self):
+        return "desc %r" % self.content
+
 class StringLiteral(AST):
 
     def __init__(self, text):
@@ -156,7 +168,8 @@ class SDL:
         return dfn
 
     @g.rule('desc = DESC STRING SEMI')
-    def visit_desc(self, node, children): pass
+    def visit_desc(self, node, (d, content, sc)):
+        return Description(content)
 
     @g.rule('defaults = DEFAULTS LBR ~"[^}]*" RBR SEMI')
     def visit_defaults(self, node, children): pass
