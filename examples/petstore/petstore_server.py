@@ -1,15 +1,15 @@
-## // Pet Store
-##
-
-from adaptive import assertListOf
-
 ## module PetStore {
 ##     desc "A sample API that uses a petstore as an example to demonstrate features in the Adaptive specification";
-##
+
+"""
+A sample API that uses a petstore as an example to demonstrate features in the Adaptive specification
+"""
+
 ##     defaults {
 ##         extbase "http://127.0.0.1:8080/PetStore";
 ##     };
-##
+
+from adaptive import assertListOf
 
 service_name = "PetStore"
 
@@ -18,7 +18,6 @@ service_name = "PetStore"
 ##         string name;
 ##         string tag = null;
 ##     };
-##
 
 class Pet(object):
 
@@ -46,20 +45,18 @@ class PetStore_server(object):
 ##         desc "Returns all pets from the system that the user has access to";
 ##         ext "http://example.com/PetStore/findPets";  // Override default
 ##     };
-##
 
     def findPets(self, tags=None, limit=None):
         """Returns all pets from the system that the user has access to"""
-        assert tags is None or assertListOf(tags, basestring)
+        assert tags is None or assertListOf(tags, basestring), tags
         assert limit is None or isinstance(limit, int), limit
         res = self.impl.findPets(tags, limit)
-        assertListOf(res, Pet)
+        assertListOf(res, Pet), res
         return res
 
 ##     Pet addPet(string name, string tag = null) {
 ##         desc "Creates a new pet in the store. Duplicates are allowed";
 ##     };
-##
 
     def addPet(self, name, tag=None):
         """Creates a new pet in the store. Duplicates are allowed"""
@@ -72,7 +69,6 @@ class PetStore_server(object):
 ##     Pet findPetById(int64 id) {
 ##         desc "Returns a pet based on the ID supplied";
 ##     };
-##
 
     def findPetById(self, id_):
         """Returns a pet based on the ID supplied"""
@@ -84,7 +80,6 @@ class PetStore_server(object):
 ##     void deletePet(int64 id) {
 ##         desc "deletes a single pet based on the ID supplied";
 ##     };
-##
 
     def deletePet(self, id_):
         """deletes a single pet based on the ID supplied"""
