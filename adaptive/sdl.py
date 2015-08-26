@@ -8,8 +8,10 @@ class AST:
             self.node = node
 
     def traverse(self, visitor):
-        visit = getattr(visitor, "visit_%s" % self.__class__.__name__, lambda s: None)
-        leave = getattr(visitor, "leave_%s" % self.__class__.__name__, lambda s: None)
+        visit = getattr(visitor, "visit_%s" % self.__class__.__name__,
+                        getattr(visitor, "visit_DEFAULT", lambda s: None))
+        leave = getattr(visitor, "leave_%s" % self.__class__.__name__,
+                        getattr(visitor, "leave_DEFAULT", lambda s: None))
         visit(self)
         if self.children:
             for c in self.children:
@@ -60,7 +62,7 @@ class Constant:
 
 null = Constant("null")
 
-class Declaration(AST):
+class _Declaration(AST):
 
     def __init__(self, name, type, default):
         self.name = name
@@ -77,12 +79,12 @@ class Declaration(AST):
         else:
             return "%s %s" % (self.type, self.name)
 
-class Field(Declaration):
+class Field(_Declaration):
 
     def __str__(self):
-        return Declaration.__str__(self) + ";"
+        return _Declaration.__str__(self) + ";"
 
-class Parameter(Declaration):
+class Parameter(_Declaration):
     pass
 
 class Operation(AST):
