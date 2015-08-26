@@ -9,7 +9,7 @@ A sample API that uses a petstore as an example to demonstrate features in the A
 ##         extbase "http://127.0.0.1:8080/PetStore";
 ##     };
 
-from adaptive import assertListOf
+from adaptive import assertListOf as _assertListOf
 
 service_name = "PetStore"
 
@@ -26,9 +26,6 @@ class Pet(object):
         self.name = name
         self.tag = tag
 
-    def __repr__(self):
-        return "<Pet %s: %s (%s)>" % (self.id, self.name, self.tag)
-
 
 class PetStore_server(object):
 
@@ -40,7 +37,6 @@ class PetStore_server(object):
             return Pet
         raise ValueError("Don't know about class %r" % classname)
 
-
 ##     List<Pet> findPets(List<string> tags = null, int32 limit = null) {
 ##         desc "Returns all pets from the system that the user has access to";
 ##         ext "http://example.com/PetStore/findPets";  // Override default
@@ -48,10 +44,10 @@ class PetStore_server(object):
 
     def findPets(self, tags=None, limit=None):
         """Returns all pets from the system that the user has access to"""
-        assert tags is None or assertListOf(tags, basestring), tags
+        assert tags is None or _assertListOf(tags, basestring), tags
         assert limit is None or isinstance(limit, int), limit
         res = self.impl.findPets(tags, limit)
-        assertListOf(res, Pet), res
+        _assertListOf(res, Pet), res
         return res
 
 ##     Pet addPet(string name, string tag = null) {
