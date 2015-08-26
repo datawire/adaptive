@@ -86,7 +86,7 @@ class PyOutput(object):
             isPassThru = line.startswith("## ")
             if isPassThru != wasPassThru:
                 fd.write("\n")
-            fd.write(line)
+            fd.write(line.rstrip())
             fd.write("\n")
             wasPassThru = isPassThru
 
