@@ -58,7 +58,7 @@ class ClientMaker(PyOutput):
         self.out("def %s(%s):" % (o.py_name, ", ".join(params)))
         self.indent()
         for parameter in o.parameters:
-            has_null_default = parameter.default and parameter.default.name == "null"  # FIXME for non-string, non-null
+            has_null_default = parameter.default and parameter.default.py_name == "None"  # FIXME for non-string, non-null
             emitTypeCheck(self.out, parameter.py_name, parameter.type, orNone=has_null_default)
         self.out("res = _service.%s(%s)" % (o.py_name, ", ".join(p.py_name for p in o.parameters)))
         emitTypeCheck(self.out, "res", o.type, orNone=False)

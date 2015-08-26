@@ -36,11 +36,13 @@ class Pythonize(object):
 
     def visit_Parameter(self, node):
         node.py_name = py_name(node.name)
-        if node.default:
-            if node.default.name == "null":
-                node.default.py_name = "None"
-            else:
-                node.default.py_name = repr(node.default.name)
+
+    def visit_Null(self, node):
+        node.py_name = "None"
+
+    def visit_StringLiteral(self, node):
+        # XXX: this depends on SDL literals matching python literals
+        node.py_name = node.text
 
     def visit_Operation(self, node):
         node.py_name = py_name(node.name)

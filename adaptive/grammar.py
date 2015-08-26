@@ -21,11 +21,11 @@ class Grammar:
         visitors = {}
         for kw in getattr(cls, "keywords", ()):
             extra_rules.append('%s = _ "%s" __' % (kw.upper(), kw))
-            visitors["visit_%s" % kw.upper()] = lambda self, node, children: None
+            visitors["visit_%s" % kw.upper()] = lambda self, node, children, x=kw: x
 
         for name, sym in getattr(cls, "symbols", {}).items():
             extra_rules.append('%s = _ "%s" _' % (name, sym))
-            visitors["visit_%s" % name] = lambda self, node, children: None
+            visitors["visit_%s" % name] = lambda self, node, children, x=sym: x
 
         class Parser(cls, parsimonious.NodeVisitor):
             rules = "\n".join(self.rules + extra_rules)

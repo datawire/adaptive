@@ -1,4 +1,3 @@
-from parsimonious.nodes import RegexNode
 from grammar import Grammar
 
 class AST:
@@ -52,15 +51,26 @@ class Struct(AST):
     def __str__(self):
         return "struct %s {%s}" % (self.name, joindent(self.fields))
 
-class Constant:
+class StringLiteral(AST):
 
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, text):
+        self.text = text
 
-    def __repr__(self):
-        return self.name
+    @property
+    def children(self):
+        if False: yield
 
-null = Constant("null")
+    def __str__(self):
+        return self.text
+
+class Null(AST):
+
+    @property
+    def children(self):
+        if False: yield
+
+    def __str__(self):
+        return "null"
 
 class _Declaration(AST):
 
@@ -72,6 +82,7 @@ class _Declaration(AST):
     @property
     def children(self):
         yield self.type
+        yield self.default
 
     def __str__(self):
         if self.default:
@@ -185,10 +196,10 @@ class SDL:
 
     @g.rule('literal = STRING / NULL')
     def visit_literal(self, node, (literal,)):
-        if literal is None:
-            return null
-        else:
+        if isinstance(literal, StringLiteral):
             return literal
+        else:
+            return Null()
 
     @g.rule('type = name (LA types RA)?')
     def visit_type(self, node, (name, params)):
@@ -202,14 +213,22 @@ class SDL:
     def visit_types(self, node, (first, rest)):
         return [first] + [n[-1] for n in rest]
 
-    @g.rule('name = _ ~"[a-zA-Z][a-zA-Z0-9]*" _')
+    @g.rule('name = _ name_re _')
     def visit_name(self, node, (pre, name, post)):
-        return name.text
+        return name
+
+    @g.rule('name_re = ~"[a-zA-Z][a-zA-Z0-9]*"')
+    def visit_name_re(self, node, children):
+        return node.text
 
     # lame string literals here
-    @g.rule(r'STRING = _ ~"\"[^\"]*\"" _')
+    @g.rule(r'STRING = _ STRING_RE _')
     def visit_STRING(self, node, (pre, string, post)):
-        return string.text
+        return StringLiteral(string)
+
+    @g.rule(r'STRING_RE = ~"\"[^\"]*\""')
+    def visit_STRING_RE(self, node, children):
+        return node.text
 
     @g.rule('_ = __?')
     def visit__(self, node, children):
@@ -220,10 +239,7 @@ class SDL:
         return None
 
     def visit_(self, node, children):
-        if isinstance(node, RegexNode):
-            return node
-        else:
-            return children
+        return children
 
 if __name__ == "__main__":
     m = SDL().parse("""
