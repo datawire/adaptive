@@ -1,10 +1,5 @@
-## // Pet Store
-##
 ## module PetStore {
 ##     desc "A sample API that uses a petstore as an example to demonstrate features in the Adaptive specification";
-##
-
-# Pet Store
 
 """
 A sample API that uses a petstore as an example to demonstrate features in the Adaptive specification
@@ -13,7 +8,6 @@ A sample API that uses a petstore as an example to demonstrate features in the A
 ##     defaults {
 ##         extbase "http://127.0.0.1:8080/PetStore";
 ##     };
-##
 
 from adaptive import sample_rpc as _sample_rpc
 from adaptive.typecheck import assertListOf as _assertListOf
@@ -26,7 +20,6 @@ _service = _sample_rpc.Client(_remote_url)
 ##         string name;
 ##         string tag = null;
 ##     };
-##
 
 Pet = _service._getClass("Pet")
 
@@ -34,20 +27,18 @@ Pet = _service._getClass("Pet")
 ##         desc "Returns all pets from the system that the user has access to";
 ##         ext "http://example.com/PetStore/findPets";  // Override default
 ##     };
-##
 
 def findPets(tags=None, limit=None):
     """Returns all pets from the system that the user has access to"""
-    assert tags is None or _assertListOf(tags, basestring)
+    assert tags is None or _assertListOf(tags, basestring), tags
     assert limit is None or isinstance(limit, int), limit
     res = _service.findPets(tags, limit)
-    _assertListOf(res, Pet)
+    _assertListOf(res, Pet), res
     return res
 
 ##     Pet addPet(string name, string tag = null) {
 ##         desc "Creates a new pet in the store. Duplicates are allowed";
 ##     };
-##
 
 def addPet(name, tag=None):
     """Creates a new pet in the store. Duplicates are allowed"""
@@ -60,7 +51,6 @@ def addPet(name, tag=None):
 ##     Pet findPetById(int64 id) {
 ##         desc "Returns a pet based on the ID supplied";
 ##     };
-##
 
 def findPetById(id_):
     """Returns a pet based on the ID supplied"""
@@ -72,7 +62,6 @@ def findPetById(id_):
 ##     void deletePet(int64 id) {
 ##         desc "deletes a single pet based on the ID supplied";
 ##     };
-##
 
 def deletePet(id_):
     """deletes a single pet based on the ID supplied"""
