@@ -29,7 +29,7 @@ sdl_to_python = {
     "double": "float",
     "string": "basestring"
 }
-def py_Typename(name):
+def py_typename(name):
     return sdl_to_python.get(name, name)
 
 
@@ -62,7 +62,7 @@ class Pythonize(object):
         node.py_name = py_name(node.name)
 
     def visit_Type(self, node):
-        node.py_name = py_Typename(node.name)
+        node.py_name = py_typename(node.name)
 
 
 def process_declarations(declarations):
@@ -120,19 +120,19 @@ class PyOutput(object):
 
     def dump(self, fd=sys.stdout):
         # Fancy print...
-        wasPassThru = True
+        was_pass_thru = True
         for line in self.lines:
-            isPassThru = line.startswith("## ")
-            if isPassThru != wasPassThru:
+            is_pass_thru = line.startswith("## ")
+            if is_pass_thru != was_pass_thru:
                 fd.write("\n")
             fd.write(line.rstrip())
             fd.write("\n")
-            wasPassThru = isPassThru
+            was_pass_thru = is_pass_thru
 
 
-def assertListOf(lst, typ, orNone=True):
+def assert_list_of(lst, typ, or_none=True):
     assert isinstance(lst, list), lst
-    if orNone:
+    if or_none:
         for idx, value in enumerate(lst):
             assert value is None or isinstance(value, typ), (idx, value)
     else:
@@ -141,7 +141,7 @@ def assertListOf(lst, typ, orNone=True):
     return True
 
 
-def emitTypeCheck(out, name, typ, orNone=True):
+def emit_type_check(out, name, typ, or_none=True):
     d = dict(name=name, typ=typ.py_name)
     if typ.name == "void":
         out("assert %(name)s is None, %(name)s" % d)
@@ -149,12 +149,12 @@ def emitTypeCheck(out, name, typ, orNone=True):
         assert len(typ.parameters) == 1, "Unimplemented: %s" % typ
         assert typ.name == "List",  "Unimplemented: %s" % typ
         d["param"] = typ.parameters[0].py_name
-        if orNone:
-            out("assert %(name)s is None or _assertListOf(%(name)s, %(param)s), %(name)s" % d)
+        if or_none:
+            out("assert %(name)s is None or _assert_list_of(%(name)s, %(param)s), %(name)s" % d)
         else:
-            out("_assertListOf(%(name)s, %(param)s), %(name)s" % d)
+            out("_assert_list_of(%(name)s, %(param)s), %(name)s" % d)
     else:
-        if orNone:
+        if or_none:
             out("assert %(name)s is None or isinstance(%(name)s, %(typ)s), %(name)s" % d)
         else:
             out("assert isinstance(%(name)s, %(typ)s), %(name)s" % d)

@@ -13,7 +13,8 @@
 # limitations under the License.
 
 import sdl
-from python import Pythonize, PyOutput, emitTypeCheck, process_declarations
+from python import Pythonize, PyOutput, emit_type_check, process_declarations
+
 
 class ClientMaker(PyOutput):
 
@@ -51,7 +52,7 @@ class ClientMaker(PyOutput):
         if self.did_module_head:
             return
 
-        self.out("from adaptive import assertListOf as _assertListOf, sample_rpc as _sample_rpc")
+        self.out("from adaptive import assert_list_of as _assert_list_of, sample_rpc as _sample_rpc")
         self.out("")
         self.out("""_remote_url = "http://127.0.0.1:8080/%s" """ % self.module_name)  # FIXME
         self.out("_service = _sample_rpc.Client(_remote_url)")
@@ -70,9 +71,9 @@ class ClientMaker(PyOutput):
         self.indent()
         for parameter in o.parameters:
             has_null_default = parameter.default and parameter.default.py_name == "None"  # FIXME for non-string, non-null
-            emitTypeCheck(self.out, parameter.py_name, parameter.type, orNone=has_null_default)
+            emit_type_check(self.out, parameter.py_name, parameter.type, or_none=has_null_default)
         self.out("res = _service.%s(%s)" % (o.py_name, ", ".join(p.py_name for p in o.parameters)))
-        emitTypeCheck(self.out, "res", o.type, orNone=False)
+        emit_type_check(self.out, "res", o.type, or_none=False)
         self.out("return res")
         self.dedent()
 

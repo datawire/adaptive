@@ -9,7 +9,7 @@ A sample API that uses a petstore as an example to demonstrate features in the A
 ##         extbase "http://127.0.0.1:8080/PetStore";
 ##     };
 
-from adaptive import assertListOf as _assertListOf
+from adaptive import assert_list_of as _assertListOf
 
 service_name = "PetStore"
 

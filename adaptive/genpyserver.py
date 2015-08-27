@@ -13,7 +13,8 @@
 # limitations under the License.
 
 import sdl
-from python import Pythonize, PyOutput, emitTypeCheck, process_declarations
+from python import Pythonize, PyOutput, emit_type_check, process_declarations
+
 
 class ServerMaker(PyOutput):
 
@@ -55,7 +56,7 @@ class ServerMaker(PyOutput):
         if self.did_module_head:
             return
 
-        self.out("from adaptive import assertListOf as _assertListOf")
+        self.out("from adaptive import assert_list_of as _assert_list_of")
         self.out("")
         self.out("""service_name = "%s" """ % self.module_name)
 
@@ -117,9 +118,9 @@ class ServerMaker(PyOutput):
         self.indent()
         for parameter in o.parameters:
             has_null_default = parameter.default and parameter.default.py_name == "None"  # FIXME for non-string, non-null
-            emitTypeCheck(self.out, parameter.py_name, parameter.type, orNone=has_null_default)
+            emit_type_check(self.out, parameter.py_name, parameter.type, or_none=has_null_default)
         self.out("res = self.impl.%s(%s)" % (o.py_name, ", ".join(p.py_name for p in o.parameters)))
-        emitTypeCheck(self.out, "res", o.type, orNone=False)
+        emit_type_check(self.out, "res", o.type, or_none=False)
         self.out("return res")
         self.dedent()
 

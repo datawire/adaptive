@@ -9,7 +9,7 @@ A sample API that uses a petstore as an example to demonstrate features in the A
 ##         extbase "http://127.0.0.1:8080/PetStore";
 ##     };
 
-from adaptive import assertListOf as _assertListOf, sample_rpc as _sample_rpc
+from adaptive import assert_list_of as _assertListOf, sample_rpc as _sample_rpc
 
 _remote_url = "http://127.0.0.1:8080/PetStore"
 _service = _sample_rpc.Client(_remote_url)
