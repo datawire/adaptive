@@ -69,6 +69,8 @@ class ClientMaker(PyOutput):
         self.ref_operation(o)
         self.out("def %s(%s):" % (o.py_name, ", ".join(process_declarations(o.parameters))))
         self.indent()
+        if o.description:
+            self.out('"""' + o.description.content.text[1:-1] + '"""')
         for parameter in o.parameters:
             has_null_default = parameter.default and parameter.default.py_name == "None"  # FIXME for non-string, non-null
             emit_type_check(self.out, parameter.py_name, parameter.type, or_none=has_null_default)

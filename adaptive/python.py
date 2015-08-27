@@ -114,6 +114,7 @@ class PyOutput(object):
     def ref_operation(self, op):
         self.ref("%s %s(%s) {" % (op.type, op.name, ", ".join(str(p) for p in op.parameters)))
         self.ref_indent()
+        self.ref("desc %s;" % op.description.content)
         # FIXME: Loop over contents of operation here, once they are parsed and available.
         self.ref_dedent()
         self.ref("};")
