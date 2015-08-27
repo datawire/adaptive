@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pickle
-
 from flask import Flask, abort
 app = Flask(__name__)
+
+from adaptive import serialize, deserialize, AdaptiveException
 
 import petstore_impl
 import PetStore_server
@@ -27,7 +27,7 @@ server = PetStore_server.PetStore_server(store)
 @app.route("/" + PetStore_server.service_name + "/<args>")
 def run_service(args):
     try:
-        command, args, kwargs = pickle.loads(args.decode("base64"))
+        command, args = deserialize(args.decode("base64"))
     except Exception:
         abort(400)
 
@@ -37,11 +37,18 @@ def run_service(args):
         abort(404)
 
     try:
-        output = True, method(*args, **kwargs)
+        output = True, method(*args)
     except Exception as exc:
-        output = False, exc
+        output = False, AdaptiveException(exc.__class__.__name__, str(exc))
 
-    return pickle.dumps(output)
+    try:
+        res = serialize(output)
+    except Exception as exc:
+        print "Returning:", output
+        print "Failed because:", exc
+        raise
+
+    return res
 
 
 if __name__ == "__main__":

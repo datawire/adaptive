@@ -14,8 +14,11 @@
 
 # Python-to-Python RPC using pickle and HTTP
 
-import os, urllib2, pickle
+import os, urllib2, exceptions
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+
+from python import serialize, deserialize, AdaptiveException
+
 
 # Server side
 
@@ -78,6 +81,7 @@ class ServiceRequestHandler(BaseHTTPRequestHandler):
 def add_instance(name, instance):
     ServiceRequestHandler.services[name] = instance
 
+
 def serve_forever(host="0.0.0.0", port=8080):
     port = int(os.environ.get("SERVER_PORT", port))
     server = HTTPServer((host, port), ServiceRequestHandler)
@@ -86,26 +90,21 @@ def serve_forever(host="0.0.0.0", port=8080):
 
 # Client side
 
-class Proxy(object):
-    def __init__(self, client, name):
-        self.client = client
-        self.name = name
-
-    def __call__(self, *args, **kwargs):
-        url = self.client.url + "/" + pickle.dumps((self.name, args, kwargs)).encode("base64").replace("\n", "")
-        u = urllib2.urlopen(url)
-        okay, res = pickle.loads(u.read())
-        if okay:
-            return res
-        raise res
-
-
 class Client(object):
     def __init__(self, url):
         self.url = url
 
-    def __getattr__(self, attr):
-        return Proxy(self, attr)
+    def call(self, name, args):
+        url = self.url + "/" + serialize((name, args)).encode("base64").replace("\n", "")
+        u = urllib2.urlopen(url)
+        okay, res = deserialize(u.read())
+        if okay:
+            return res
+        try:
+            exc = getattr(exceptions, res.name)
+            raise exc(res.value)
+        except AttributeError:  # One of res.name, res.value, or the getattr
+            raise res
 
 
 # Sample

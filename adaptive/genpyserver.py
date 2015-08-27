@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sdl
-from python import Pythonize, PyOutput, emit_type_check, process_declarations
+from python import PyOutput, emit_type_check, process_declarations
 
 
 class ServerMaker(PyOutput):
@@ -24,7 +23,6 @@ class ServerMaker(PyOutput):
         self.did_module_body = False
         self.module_name = None
         self.module_py_name = None
-        self.known_classes = {}  # name -> py_name
 
     def module(self, m):
         self.ref("module %s {" % m.name)
@@ -33,7 +31,8 @@ class ServerMaker(PyOutput):
         self.module_py_name = m.py_name
 
         for definition in m.definitions:
-            if definition is None: continue
+            if definition is None:
+                continue
             kind = definition.__class__.__name__
             if kind == "Description":
                 self.ref("""desc %s;""" % definition.content)
@@ -56,7 +55,7 @@ class ServerMaker(PyOutput):
         if self.did_module_head:
             return
 
-        self.out("from adaptive import assert_list_of as _assert_list_of")
+        self.out("from adaptive import AdaptiveValue, AdaptiveValueType, AdaptiveException, assert_list_of")
         self.out("")
         self.out("""service_name = "%s" """ % self.module_name)
 
@@ -67,19 +66,7 @@ class ServerMaker(PyOutput):
         assert not self.did_module_body, "Must have all structs before any functions (to be fixed)"
 
         self.ref_struct(s)
-
-        self.out("class %s(object):" % s.py_name)
-        self.out("")
-        self.indent()
-        self.out("def __init__(self, %s):" % ", ".join(process_declarations(s.fields)))
-        self.indent()
-        for field in s.fields:
-            self.out("self.%s = %s" % (field.name, field.py_name))  # FIXME is this okay?
-        self.dedent()
-
-        self.dedent()
-        self.out("")
-        self.known_classes[s.name] = s.py_name
+        self.def_struct(s)
 
     def module_body(self):
         self.module_head()
@@ -98,16 +85,6 @@ class ServerMaker(PyOutput):
         self.dedent()
         self.out("")
 
-        self.out("def _getClass(self, classname):")
-        self.indent()
-        for name, py_name in self.known_classes.items():
-            self.out("""if classname == "%s":""" % name)
-            self.indent()
-            self.out("return %s" % py_name)
-            self.dedent()
-        self.out("""raise ValueError("Don't know about class %r" % classname)""")
-        self.dedent()
-
         self.did_module_body = True
 
     def operation(self, o):
@@ -119,7 +96,7 @@ class ServerMaker(PyOutput):
         if o.description:
             self.out('"""' + o.description.content.text[1:-1] + '"""')
         for parameter in o.parameters:
-            has_null_default = parameter.default and parameter.default.py_name == "None"  # FIXME for non-string, non-null
+            has_null_default = parameter.default and str(parameter.default) == "null"  # FIXME for non-string, non-null
             emit_type_check(self.out, parameter.py_name, parameter.type, or_none=has_null_default)
         self.out("res = self.impl.%s(%s)" % (o.py_name, ", ".join(p.py_name for p in o.parameters)))
         emit_type_check(self.out, "res", o.type, or_none=False)

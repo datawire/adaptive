@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sdl
-from python import Pythonize, PyOutput, emit_type_check, process_declarations
+from python import PyOutput, emit_type_check, process_declarations
 
 
 class ClientMaker(PyOutput):
@@ -52,17 +51,17 @@ class ClientMaker(PyOutput):
         if self.did_module_head:
             return
 
-        self.out("from adaptive import assert_list_of as _assert_list_of, sample_rpc as _sample_rpc")
+        self.out("from adaptive import AdaptiveValue, AdaptiveValueType, AdaptiveException, assert_list_of, sample_rpc")
         self.out("")
         self.out("""_remote_url = "http://127.0.0.1:8080/%s" """ % self.module_name)  # FIXME
-        self.out("_service = _sample_rpc.Client(_remote_url)")
+        self.out("_service = sample_rpc.Client(_remote_url)")
 
         self.did_module_head = True
 
     def struct(self, s):
         self.module_head()
         self.ref_struct(s)
-        self.out("""%s = _service._getClass("%s")""" % (s.py_name, s.name))
+        self.def_struct(s)
 
     def operation(self, o):
         self.module_head()
@@ -74,7 +73,7 @@ class ClientMaker(PyOutput):
         for parameter in o.parameters:
             has_null_default = parameter.default and parameter.default.py_name == "None"  # FIXME for non-string, non-null
             emit_type_check(self.out, parameter.py_name, parameter.type, or_none=has_null_default)
-        self.out("res = _service.%s(%s)" % (o.py_name, ", ".join(p.py_name for p in o.parameters)))
+        self.out("""res = _service.call("%s", (%s,))""" % (o.py_name, ", ".join(p.py_name for p in o.parameters)))
         emit_type_check(self.out, "res", o.type, or_none=False)
         self.out("return res")
         self.dedent()
