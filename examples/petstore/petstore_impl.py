@@ -14,7 +14,7 @@
 
 # Pet Store
 
-from petstore_server import Pet
+from PetStore_server import Pet
 
 class PetStore(object):
     """

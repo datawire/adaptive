@@ -18,12 +18,13 @@ from flask import Flask, abort
 app = Flask(__name__)
 
 import petstore_impl
-import petstore_server
+import PetStore_server
 
 store = petstore_impl.PetStore()
-server = petstore_server.PetStore_server(store)
+server = PetStore_server.PetStore_server(store)
 
-@app.route("/" + petstore_server.service_name + "/<args>")
+
+@app.route("/" + PetStore_server.service_name + "/<args>")
 def run_service(args):
     try:
         command, args, kwargs = pickle.loads(args.decode("base64"))

@@ -44,7 +44,7 @@ def main():
     psclient(store)
 
 def main2():
-    import PetStore
+    import PetStore_client as PetStore
     psclient(PetStore)
 
 if __name__ == "__main__":
