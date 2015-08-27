@@ -11,4 +11,6 @@ setup(name='datawire-adaptive',
       author_email=metadata["__email__"],
       url=metadata["__uri__"],
       license=metadata["__license__"],
-      packages=['adaptive'])
+      packages=['adaptive'],
+      entry_points={"console_scripts": ["adaptive = adaptive.codegen:call_main"]}
+      )

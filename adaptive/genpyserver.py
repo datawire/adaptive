@@ -125,12 +125,3 @@ class ServerMaker(PyOutput):
         emit_type_check(self.out, "res", o.type, or_none=False)
         self.out("return res")
         self.dedent()
-
-
-m = sdl.SDL().parse(open("../examples/petstore/petstore.sdl").read())
-m.traverse(Pythonize())  # Add py_name attributes to the AST
-#print m
-
-sm = ServerMaker()
-sm.module(m)
-sm.dump()
