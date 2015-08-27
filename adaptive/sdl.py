@@ -126,10 +126,11 @@ class Parameter(_Declaration):
 
 class Operation(AST):
 
-    def __init__(self, name, parameters, type):
+    def __init__(self, name, parameters, type, description):
         self.name = name
         self.parameters = parameters
         self.type = type
+        self.description = description
 
     @property
     def children(self):
@@ -138,7 +139,11 @@ class Operation(AST):
             yield p
 
     def __str__(self):
-        return "%s %s(%s);" % (self.type, self.name, ", ".join(map(str, self.parameters)))
+        if self.description:
+            return "%s %s(%s) {\n  %s\n};" % (self.type, self.name, ", ".join(map(str, self.parameters)),
+                                              self.description)
+        else:
+            return "%s %s(%s);" % (self.type, self.name, ", ".join(map(str, self.parameters)))
 
 class Type(AST):
 
@@ -193,13 +198,19 @@ class SDL:
         return Struct(name, fields)
 
     # should think about queries and/or idempotency
-    @g.rule('operation = type name LPR parameters? RPR (LBR ~"[^}]*" RBR)? SEMI')
-    def visit_operation(self, node, (type, name, l, params, r, _, s)):
+    @g.rule('operation = type name LPR parameters? RPR (LBR desc? ~"[^}]*" RBR)? SEMI')
+    def visit_operation(self, node, (type, name, l, params, r, body, s)):
         if params:
             params = params[0]
         else:
             params = []
-        return Operation(name, params, type)
+        if body:
+            desc = body[0][1]
+            if desc:
+                desc = desc[0]
+        else:
+            desc = None
+        return Operation(name, params, type, desc)
 
     @g.rule('parameters = param (COMMA param)*')
     def visit_parameters(self, node, (first, rest)):
