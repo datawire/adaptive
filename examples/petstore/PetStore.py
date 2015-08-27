@@ -9,7 +9,7 @@ A sample API that uses a petstore as an example to demonstrate features in the A
 ##         extbase "http://127.0.0.1:8080/PetStore";
 ##     };
 
-from adaptive import assert_list_of as _assertListOf, sample_rpc as _sample_rpc
+from adaptive import assert_list_of as _assert_list_of, sample_rpc as _sample_rpc
 
 _remote_url = "http://127.0.0.1:8080/PetStore"
 _service = _sample_rpc.Client(_remote_url)
@@ -29,10 +29,10 @@ Pet = _service._getClass("Pet")
 
 def findPets(tags=None, limit=None):
     """Returns all pets from the system that the user has access to"""
-    assert tags is None or _assertListOf(tags, basestring), tags
+    assert tags is None or _assert_list_of(tags, basestring), tags
     assert limit is None or isinstance(limit, int), limit
     res = _service.findPets(tags, limit)
-    _assertListOf(res, Pet), res
+    _assert_list_of(res, Pet), res
     return res
 
 ##     Pet addPet(string name, string tag = null) {

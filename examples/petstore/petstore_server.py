@@ -9,7 +9,7 @@ A sample API that uses a petstore as an example to demonstrate features in the A
 ##         extbase "http://127.0.0.1:8080/PetStore";
 ##     };
 
-from adaptive import assert_list_of as _assertListOf
+from adaptive import assert_list_of as _assert_list_of
 
 service_name = "PetStore"
 
@@ -44,10 +44,10 @@ class PetStore_server(object):
 
     def findPets(self, tags=None, limit=None):
         """Returns all pets from the system that the user has access to"""
-        assert tags is None or _assertListOf(tags, basestring), tags
+        assert tags is None or _assert_list_of(tags, basestring), tags
         assert limit is None or isinstance(limit, int), limit
         res = self.impl.findPets(tags, limit)
-        _assertListOf(res, Pet), res
+        _assert_list_of(res, Pet), res
         return res
 
 ##     Pet addPet(string name, string tag = null) {
