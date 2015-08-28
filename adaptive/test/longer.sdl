@@ -1,0 +1,12 @@
+module asdf {
+    struct A {
+        a b = null;
+        c d = "asdf";
+        x y;
+    };
+    List<A, B, C> funge(List<int> a, int b, int c);
+    List<A, B> funge(int a, int b);
+    List<A> funge(int a);
+    void funge();
+    List<A<B, C>> funge(int a = null);
+};
