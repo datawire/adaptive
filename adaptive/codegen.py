@@ -43,7 +43,7 @@ supported_intents = "client", "server"
 def main(args):
     if args["-V"] or args["--version"]:
         sys.stderr.write("Adaptive Codegen %s\n" % _metadata.__version__)
-        exit()
+        return
     sdl_filename = args["<sdl_filename>"]
     targets_in = args["<target>"]
 
@@ -66,14 +66,13 @@ def main(args):
         if not problems:
             targets.add((language, intent))
     if problems:
-        exit("Failed to parse some targets. See also: adaptive --help")
+        return "Failed to parse some targets. See also: adaptive --help"
 
     try:
         sdl_text = open(sdl_filename).read()
     except IOError as exc:
         sys.stderr.write(str(exc) + "\n")
-        exit("Failed to open SDL file %r" % sdl_filename)
-        raise  # Not reached
+        return "Failed to open SDL file %r" % sdl_filename
 
     try:
         module = SDL().parse(sdl_text)
@@ -103,7 +102,7 @@ def main(args):
 
 
 def call_main():
-    main(docopt(__doc__))
+    exit(main(docopt(__doc__)))
 
 if __name__ == "__main__":
     call_main()
