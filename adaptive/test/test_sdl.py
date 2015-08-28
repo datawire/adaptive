@@ -15,7 +15,7 @@
 import os
 import pytest
 
-from adaptive import sdl
+import adaptive.sdl
 
 
 sdl_names = "minimal.sdl", "longer.sdl", "petstore.sdl", # "petstore_full_fails.sdl"
@@ -24,13 +24,13 @@ sdl_data = {name: open(os.path.join(os.path.dirname(__file__), name)).read().str
 
 
 @pytest.fixture(params=sdl_names)
-def sdlstr(request):
+def sdl(request):
     return sdl_data[request.param]
 
 
-def test_str_roundtrip(sdlstr):
-    m = sdl.SDL().parse(sdlstr)
+def test_str_roundtrip(sdl):
+    m = adaptive.sdl.SDL().parse(sdl)
     print str(m)
-    print sdlstr
-    if "defaults" not in sdlstr:
-        assert str(m) == sdlstr
+    print sdl
+    if "defaults" not in sdl:
+        assert str(m) == sdl
