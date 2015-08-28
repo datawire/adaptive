@@ -14,5 +14,5 @@ setup(name='datawire-adaptive',
       packages=['adaptive'],
       install_requires=["docopt==0.6.2",
                         "parsimonious==0.6.2"],
-      entry_points={"console_scripts": ["adaptive = adaptive.codegen:call_main"]}
+      entry_points={"console_scripts": ["adaptive = adaptive.compiler:call_main"]}
       )
