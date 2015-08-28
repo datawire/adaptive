@@ -35,7 +35,7 @@ class AST:
 def joindent(items):
     st = "\n".join(map(str, items))
     if st:
-        st = ("\n" + st).replace("\n", "\n  ")
+        st = ("\n" + st).replace("\n", "\n    ")
         st += "\n"
     return st
 
@@ -50,7 +50,7 @@ class Module(AST):
         return self.definitions
 
     def __str__(self):
-        return "module %s {%s}" % (self.name, joindent(self.definitions))
+        return "module %s {%s};" % (self.name, joindent(self.definitions))
 
 class Struct(AST):
 
@@ -63,7 +63,7 @@ class Struct(AST):
         return self.fields
 
     def __str__(self):
-        return "struct %s {%s}" % (self.name, joindent(self.fields))
+        return "struct %s {%s};" % (self.name, joindent(self.fields))
 
 class Description(AST):
 
@@ -75,7 +75,7 @@ class Description(AST):
         return []
 
     def __str__(self):
-        return "desc %s" % self.content
+        return "desc %s;" % self.content
 
 class StringLiteral(AST):
 
@@ -140,7 +140,7 @@ class Operation(AST):
 
     def __str__(self):
         if self.description:
-            return "%s %s(%s) {\n  %s\n};" % (self.type, self.name, ", ".join(map(str, self.parameters)),
+            return "%s %s(%s) {\n    %s\n};" % (self.type, self.name, ", ".join(map(str, self.parameters)),
                                               self.description)
         else:
             return "%s %s(%s);" % (self.type, self.name, ", ".join(map(str, self.parameters)))
