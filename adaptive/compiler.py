@@ -33,7 +33,7 @@ import sys
 
 from docopt import docopt
 
-import _metadata, python, genpyserver, genpyclient
+import _metadata, python.generate
 from sdl import SDL
 
 supported_languages = "python",
@@ -82,18 +82,18 @@ def main(args):
 
     for language, intent in targets:
         assert language == "python", (language, intent)
-        module.traverse(python.Pythonize())
+        module.traverse(python.generate.Pythonize())
         if intent == "client":
             out_name = module.name + "_client.py"
             sys.stderr.write("%s python:client --> %s\n" % (sdl_filename, out_name))
-            cm = genpyclient.ClientMaker()
+            cm = python.generate.ClientMaker()
             cm.module(module)
             with open(out_name, "wb") as fd:
                 cm.dump(fd)
         elif intent == "server":
             out_name = module.name + "_server.py"
             sys.stderr.write("%s python:server --> %s\n" % (sdl_filename, out_name))
-            sm = genpyserver.ServerMaker()
+            sm = python.generate.ServerMaker()
             sm.module(module)
             with open(out_name, "wb") as fd:
                 sm.dump(fd)

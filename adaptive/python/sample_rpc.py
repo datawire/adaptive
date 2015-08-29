@@ -17,7 +17,39 @@
 import os, urllib2, exceptions
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 
-from python import serialize, deserialize, AdaptiveException
+from runtime import serialize, deserialize, AdaptiveException
+
+
+def call_to_url_path(name, args):
+    return "/" + serialize((name, args)).encode("base64").replace("\n", "")
+
+
+def url_path_to_call(path):
+    name, args = deserialize(path.decode("base64"))
+    return name, args
+
+
+def pack_exception(exc):
+    return AdaptiveException(exc.__class__.__name__, str(exc))
+
+
+# Client side
+
+class RPCClient(object):
+    def __init__(self, url):
+        self.url = url
+
+    def call(self, name, args):
+        url = self.url + call_to_url_path(name, args)
+        u = urllib2.urlopen(url)
+        okay, res = deserialize(u.read())
+        if okay:
+            return res
+        try:
+            exc = getattr(exceptions, res.name)
+            raise exc(res.value)
+        except AttributeError:  # One of res.name, res.value, or the getattr
+            raise res
 
 
 # Server side
@@ -37,7 +69,7 @@ class ServiceRequestHandler(BaseHTTPRequestHandler):
 
         while components:
             name = components[0].strip()
-            args = "/".join(components[1:])
+            call_path = "/".join(components[1:])
 
             try:
                 instance = ServiceRequestHandler.services[name]
@@ -46,7 +78,7 @@ class ServiceRequestHandler(BaseHTTPRequestHandler):
                 break
 
             try:
-                command, args, kwargs = pickle.loads(args.decode("base64"))
+                command, args = url_path_to_call(call_path)
             except Exception:
                 res = 400
                 error = "Bad Request: Failed to parse operation"
@@ -59,13 +91,19 @@ class ServiceRequestHandler(BaseHTTPRequestHandler):
                 break
 
             try:
-                output = True, method(*args, **kwargs)
+                output = True, method(*args)
             except Exception as exc:
-                output = False, exc
+                output = False, pack_exception(exc)
 
             res = 200
-            body = pickle.dumps(output)
-            error = None
+            try:
+                body = serialize(output)
+                error = None
+            except Exception as exc:
+                print "Returning", output
+                print "Failed because:", exc
+                raise
+
             break
 
         if error:
@@ -86,37 +124,3 @@ def serve_forever(host="0.0.0.0", port=8080):
     port = int(os.environ.get("SERVER_PORT", port))
     server = HTTPServer((host, port), ServiceRequestHandler)
     server.serve_forever()
-
-
-# Client side
-
-class Client(object):
-    def __init__(self, url):
-        self.url = url
-
-    def call(self, name, args):
-        url = self.url + "/" + serialize((name, args)).encode("base64").replace("\n", "")
-        u = urllib2.urlopen(url)
-        okay, res = deserialize(u.read())
-        if okay:
-            return res
-        try:
-            exc = getattr(exceptions, res.name)
-            raise exc(res.value)
-        except AttributeError:  # One of res.name, res.value, or the getattr
-            raise res
-
-
-# Sample
-
-if __name__ == '__main__':
-    class Greeting(object):
-        def __init__(self):
-            self.counter = 0
-
-        def greet(self):
-            self.counter += 1
-            return '''{"id":%s,"content":"Hello, World!"}''' % self.counter
-
-    add_instance("Greeting", Greeting())
-    serve_forever()

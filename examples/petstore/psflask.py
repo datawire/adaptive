@@ -15,7 +15,8 @@
 from flask import Flask, abort
 app = Flask(__name__)
 
-from adaptive import serialize, deserialize, AdaptiveException
+from adaptive.python.sample_rpc import serialize, url_path_to_call, pack_exception
+
 
 import petstore_impl
 import PetStore_server
@@ -24,22 +25,22 @@ store = petstore_impl.PetStore()
 server = PetStore_server.PetStore_server(store)
 
 
-@app.route("/" + PetStore_server.service_name + "/<args>")
-def run_service(args):
+@app.route("/" + server.name + "/<call_path>")
+def run_service(call_path):
     try:
-        command, args = deserialize(args.decode("base64"))
+        command, args = url_path_to_call(call_path)
     except Exception:
-        abort(400)
+        return abort(400)
 
     try:
         method = getattr(server, command)
     except AttributeError:
-        abort(404)
+        return abort(404)
 
     try:
         output = True, method(*args)
     except Exception as exc:
-        output = False, AdaptiveException(exc.__class__.__name__, str(exc))
+        output = False, pack_exception(exc)
 
     try:
         res = serialize(output)

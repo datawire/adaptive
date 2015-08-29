@@ -43,9 +43,12 @@ def main():
     store = PetStore()
     psclient(store)
 
+
 def main2():
-    import PetStore_client as PetStore
-    psclient(PetStore)
+    from PetStore_client import PetStore_client
+    store = PetStore_client("http://127.0.0.1:8080/PetStore")
+    psclient(store)
+
 
 if __name__ == "__main__":
     main()
