@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from grammar import Grammar
+from quark.grammar import Grammar
 
 class AST:
 
@@ -50,7 +50,7 @@ class Module(AST):
         return self.definitions
 
     def __str__(self):
-        return "module %s {%s};" % (self.name, joindent(self.definitions))
+        return "module %s {%s}" % (self.name, joindent(self.definitions))
 
 class Struct(AST):
 
@@ -178,8 +178,8 @@ class SDL:
                "RPR": ")",
                "NULL": "null"}
 
-    @g.rule('module = MODULE name LBR definition* RBR SEMI ~"$"')
-    def visit_module(self, node, (m, name, l, definitions, r, s, eof)):
+    @g.rule('module = MODULE name LBR definition* RBR ~"$"')
+    def visit_module(self, node, (m, name, l, definitions, r, eof)):
         return Module(name, definitions)
 
     @g.rule('definition = struct / operation / desc / defaults')

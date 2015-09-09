@@ -17,4 +17,4 @@ module PetStore {
     void deletePet(int64 id) {
         desc "deletes a single pet based on the ID supplied";
     };
-};
+}

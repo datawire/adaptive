@@ -9,4 +9,4 @@ module asdf {
     List<A> funge(int a);
     void funge();
     List<A<B, C>> funge(int a = null);
-};
+}
