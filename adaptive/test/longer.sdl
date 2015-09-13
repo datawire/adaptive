@@ -3,7 +3,7 @@ module asdf {
         a b = null;
         c d = "asdf";
         x y;
-    };
+    }
     List<A, B, C> funge(List<int> a, int b, int c);
     List<A, B> funge(int a, int b);
     List<A> funge(int a);

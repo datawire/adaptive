@@ -4,17 +4,17 @@ module PetStore {
         int64 id;
         string name;
         string tag = null;
-    };
+    }
     List<Pet> findPets(List<string> tags = null, int32 limit = null) {
         desc "Returns all pets from the system that the user has access to";
-    };
+    }
     Pet addPet(string name, string tag = null) {
         desc "Creates a new pet in the store. Duplicates are allowed";
-    };
+    }
     Pet findPetById(int64 id) {
         desc "Returns a pet based on the ID supplied";
-    };
+    }
     void deletePet(int64 id) {
         desc "deletes a single pet based on the ID supplied";
-    };
+    }
 }

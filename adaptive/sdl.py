@@ -63,7 +63,7 @@ class Struct(AST):
         return self.fields
 
     def __str__(self):
-        return "struct %s {%s};" % (self.name, joindent(self.fields))
+        return "struct %s {%s}" % (self.name, joindent(self.fields))
 
 class Description(AST):
 
@@ -140,8 +140,8 @@ class Operation(AST):
 
     def __str__(self):
         if self.description:
-            return "%s %s(%s) {\n    %s\n};" % (self.type, self.name, ", ".join(map(str, self.parameters)),
-                                              self.description)
+            return "%s %s(%s) {\n    %s\n}" % (self.type, self.name, ", ".join(map(str, self.parameters)),
+                                               self.description)
         else:
             return "%s %s(%s);" % (self.type, self.name, ", ".join(map(str, self.parameters)))
 
@@ -190,15 +190,15 @@ class SDL:
     def visit_desc(self, node, (d, content, sc)):
         return Description(content)
 
-    @g.rule('defaults = DEFAULTS LBR ~"[^}]*" RBR SEMI')
+    @g.rule('defaults = DEFAULTS LBR ~"[^}]*" RBR')
     def visit_defaults(self, node, children): pass
 
-    @g.rule('struct = STRUCT name LBR field* RBR SEMI')
-    def visit_struct(self, node, (s, name, l, fields, r, sc)):
+    @g.rule('struct = STRUCT name LBR field* RBR')
+    def visit_struct(self, node, (s, name, l, fields, r)):
         return Struct(name, fields)
 
     # should think about queries and/or idempotency
-    @g.rule('operation = type name LPR parameters? RPR (LBR desc? ~"[^}]*" RBR)? SEMI')
+    @g.rule('operation = type name LPR parameters? RPR (LBR desc? ~"[^}]*" RBR)? SEMI?')
     def visit_operation(self, node, (type, name, l, params, r, body, s)):
         if params:
             params = params[0]

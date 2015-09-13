@@ -19,12 +19,7 @@ Usage: adaptive <sdl_filename> <target> ...
        adaptive -h | --help
        adaptive -V | --version
 
-Targets are of the form language:intent.
-
-Languages: python
-           java (not implemented)
-
-Intents: client (default)
+Targets: client (default)
          async-client (not implemented)
          server
 """
@@ -33,11 +28,10 @@ import sys
 
 from docopt import docopt
 
-import _metadata, python.generate
+import _metadata, generate
 from sdl import SDL
 
-supported_languages = "python",
-supported_intents = "client", "server"
+supported_targets = "client", "server"
 
 
 def main(args):
@@ -47,24 +41,14 @@ def main(args):
     sdl_filename = args["<sdl_filename>"]
     targets_in = args["<target>"]
 
-    targets = set()
+    targets = set(["client"])
     problems = False
-    for target_in in targets_in:
-        if ":" not in target_in:
-            target = target_in + ":client"
-        else:
-            target = target_in
-        language, intent = target.split(":", 1)
-        language = language.strip().lower()
-        intent = intent.strip().lower()
-        if language not in supported_languages:
-            sys.stderr.write("Language %r not supported for target %r\n" % (language, target_in))
-            problems = True
-        if intent not in supported_intents:
+    for target in targets_in:
+        if target not in supported_targets:
             sys.stderr.write("Intent %r not supported for target %r\n" % (intent, target_in))
             problems = True
         if not problems:
-            targets.add((language, intent))
+            targets.add(target)
     if problems:
         return "Failed to parse some targets. See also: adaptive --help"
 
@@ -80,25 +64,23 @@ def main(args):
         # FIXME: Do something smart here
         raise
 
-    for language, intent in targets:
-        assert language == "python", (language, intent)
-        module.traverse(python.generate.Pythonize())
-        if intent == "client":
-            out_name = module.name + "_client.py"
-            sys.stderr.write("%s python:client --> %s\n" % (sdl_filename, out_name))
-            cm = python.generate.ClientMaker()
+    for target in targets:
+        if target == "client":
+            out_name = module.name + "_client.q"
+            sys.stderr.write("%s client --> %s\n" % (sdl_filename, out_name))
+            cm = generate.ClientMaker()
             cm.module(module)
             with open(out_name, "wb") as fd:
                 cm.dump(fd)
-        elif intent == "server":
-            out_name = module.name + "_server.py"
-            sys.stderr.write("%s python:server --> %s\n" % (sdl_filename, out_name))
-            sm = python.generate.ServerMaker()
+        elif target == "server":
+            out_name = module.name + "_server.q"
+            sys.stderr.write("%s server --> %s\n" % (sdl_filename, out_name))
+            sm = generate.ServerMaker()
             sm.module(module)
             with open(out_name, "wb") as fd:
                 sm.dump(fd)
         else:
-            raise ValueError("WTF? %s %s" % (language, intent))
+            raise ValueError("WTF? %s" % target)
 
 
 def call_main():
