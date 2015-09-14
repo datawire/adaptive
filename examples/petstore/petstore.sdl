@@ -1,34 +1,31 @@
 // Pet Store
 
-module PetStore {
+@doc("A sample API that uses a petstore as an example to demonstrate features in the Adaptive specification")
+@url("http://127.0.0.1:8080/")
+package petstore {
 
-    desc "A sample API that uses a petstore as an example to demonstrate features in the Adaptive specification";
-
-    defaults {
-        extbase "http://127.0.0.1:8080/PetStore";
-    }
-
-    struct Pet {
+    @doc("Essential information about a pet.")
+    class Pet {
         int id;
         String name;
         String tag = null;
     }
 
-    List<Pet> findPets(List<String> tags = null, int limit = null) {
-        desc "Returns all pets from the system that the user has access to";
-        ext "http://example.com/PetStore/findPets";  // Override default
-    }
+    @service interface PetStore {
 
-    Pet addPet(String name, String tag = null) {
-        desc "Creates a new pet in the store. Duplicates are allowed";
-    }
+        @doc("Returns all pets from the system that the user has access to")
+        @url("http://example.com/PetStore/findPets") // Override default
+        @query List<Pet> findPets(List<String> tags /*= null*/, int limit /*= null*/);
 
-    Pet findPetById(int id) {
-        desc "Returns a pet based on the ID supplied";
-    }
+        @doc("Creates a new pet in the store. Duplicates are allowed")
+        @operation Pet addPet(String name, String tag /*= null*/);
 
-    void deletePet(int id) {
-        desc "deletes a single pet based on the ID supplied";
+        @doc("Returns a pet based on the ID supplied")
+        @query Pet findPetById(int id);
+
+        @doc("deletes a single pet based on the ID supplied")
+        @operation void deletePet(int id);
+
     }
 
 }

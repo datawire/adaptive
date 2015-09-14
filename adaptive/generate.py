@@ -13,253 +13,157 @@
 # limitations under the License.
 
 from adaptive.emit import Emitter, RefEmitter
-from adaptive.sdl import Operation
+from quark.parser import Parser
+from quark.ast import *
 
+def parse(rule, text):
+    p = Parser()
+    return p.visit(p.grammar[rule].parse(text))
 
-def process_declarations(declarations):
-    res = []
-    for declaration in declarations:
-        if False and declaration.default:
-            res.append("%s %s=%s" % (declaration.type, declaration.name, declaration.default))
-        else:
-            res.append("%s %s" % (declaration.type, declaration.name))
-    return res
+def statement(text):
+    return parse("statement", text)
 
+class MapConstructor(object):
 
-class Maker(object):
+    def Class(self, cls):
+        return Constructor(cls.name.copy(), parse("parameters", "Map<String,Object> map"),
+                           Block([d.apply(self) for d in cls.definitions if isinstance(d, Field)]))
 
-    def __init__(self):
-        self.out = Emitter()
-        self.ref = RefEmitter("// ", self.out)
+    def Field(self, f):
+        return parse("statement", 'self.%s = map.get("%s");' % (f.name.text, f.name.text))
 
-        self.did_module_head = False
-        self.did_module_body_lead_in = False
-        self.module_name = None
+class MapRenderer(object):
 
-    def dump(self, fd):
-        return self.out.dump(fd)
+    def Class(self, cls):
+        return Method(parse("type", "Map<String,Object>"), Name("toMap"), [],
+                      Block([statement("Map<String,Object> map = new Map<String,Object>();")] +
+                            [d.apply(self) for d in cls.definitions if isinstance(d, Field)] +
+                            [statement("return map;")]))
 
-    def module(self, m):
-        self.ref.module_head(m)
-        self.module_name = m.name
-        self.mod = m
+    def Field(self, f):
+        return parse("statement", 'map.put("%s", self.%s);' % (f.name.text, f.name.text))
 
-        for definition in m.definitions:
-            if definition is None:
-                continue
-            kind = definition.__class__.__name__
-            if kind == "Description":
-                self.ref.description(definition)
-                #self.out('"""')
-                #self.out(str(definition.content)[1:-1])
-                #self.out('"""')
-            elif kind == "Defaults":
-                self.ref("""defaults { %s };""" % "no content")
-            elif kind == "Struct":
-                self.struct(definition)
-            elif kind == "Operation":
-                self.operation(definition)
+class Generator(object):
+
+    def __init__(self, transform):
+        self.classes = []
+        self.transform = transform
+
+    def leave_Class(self, cls):
+        cls.definitions.append(cls.apply(MapConstructor()))
+        cls.definitions.append(cls.apply(MapRenderer()))
+
+    def get_annotation(self, node, name):
+        for a in node.annotations:
+            if a.name.text == name:
+                return a
+        return None
+
+    def leave_Interface(self, i):
+        if self.get_annotation(i, "service"):
+            cls = i.apply(self.transform)
+            self.classes.append(cls)
+
+    def leave_Primitive(self, p):
+        pass
+
+    def leave_Package(self, p):
+        p.definitions.append(parse("class", """
+        interface RPCClient {
+            Map<String,Object> call(String name, Map<String,Object> args);
+        }
+        """))
+        p.definitions.extend(self.classes)
+
+class ClientTransform(object):
+
+    def Interface(self, i):
+        return Class(parse("name", "%sClient" % i.name.text), (), None,
+                     [parse("field", "RPCClient rpc;")] +
+                     [d.apply(self) for d in i.definitions])
+
+    def Method(self, m):
+        result = m.copy()
+        body = [statement("Map<String,Object> args = new Map<String,Object>();")]
+        body.extend([p.apply(self) for p in m.params])
+        body.append(statement('Map<String,Object> map = self.rpc.call("%s", args);' % m.name.text))
+        tname = m.type.path[0].text
+        if tname != "void":
+            new = Call(m.type.copy(), [])
+            body.append(Local(Declaration(m.type.copy(), Name("result"), new)))
+            if tname == "List":
+                body.append(statement('List<Map<String,Object>> list = map.get("$result");'))
+                if_ = statement("if (list != null) {}")
+                body.append(if_)
+                cons = if_.consequence.statements
+                cons.append(statement('int idx = 0;'))
+                while_ = statement('while (idx < list.size()) {}')
+                cons.append(while_)
+                loop = while_.body.statements
+                loop.append(ExprStmt(Call(Attr(parse("var", "result"),
+                                               Name("add")),
+                                          [Call(m.type.parameters[0].copy(),
+                                                parse("exprs", "list.get(idx)"))])))
+                loop.append(statement('idx = idx + 1;'))
             else:
-                raise ValueError("WTF? %s %s" % (kind, definition))
+                new.args.append(parse("var", "map"))
+            body.append(statement("return result;"))
+        result.body = Block(body)
+        return result
 
-        self.ref.module_tail(m)
-        self.module_tail()
+    def Param(self, p):
+        return statement('args.put("%s", %s);' % (p.name.text, p.name.text))
 
-    def module_head(self):
-        raise NotImplementedError
+class ServerTransform(object):
 
-    def module_tail(self):
-        raise NotImplementedError
+    def Interface(self, i):
+        cls = parse("class", """class %(name)sServer {
+            %(name)s impl;
 
-    def struct(self, st):
-        self.module_head()
-        assert not self.did_module_body_lead_in, "Must have all structs before any functions (to be fixed)"
-        self.ref.struct(st)
-        self.out("class %s {" % st.name)
-        self.out("")
-        with self.out.indentation():
-            for field in st.fields:
-                if field.default:
-                    self.out("%s %s = %s;" % (field.type, field.name, field.default))
-                else:
-                    self.out("%s %s;" % (field.type, field.name))
-            self.out("")
-            self.out("%s(Map<String,Object> map) {" % st.name)
-            with self.out.indentation():
-                for field in st.fields:
-                    self.out('self.%s = map.get("%s");' % (field.name, field.name))
-            self.out("}")
-            self.out("")
-            self.out("Map<String,Object> toMap() {")
-            with self.out.indentation():
-                self.out("Map<String,Object> result = new Map<String,Object>();")
-                for field in st.fields:
-                    self.out('result.put("%s", %s);' % (field.name, field.name))
-                self.out("return result;")
-            self.out("}")
-        self.out("}")
-        self.out("")
+            %(name)sServer(%(name)s impl) {
+                self.impl = impl;
+            }
+        }""" % {"name": i.name.text})
+        call = parse("method", """Map<String,Object> call(String name, Map<String,Object> args) {
+            int idx;
+            Map<String,Object> map = new Map<String,Object>();
+            List<Map<String,Object>> list = new List<Map<String,Object>>();
+        }""")
+        cls.definitions.append(call)
+        body = call.body.statements
+        body.extend([d.apply(self) for d in i.definitions])
+        body.append(statement('map.put("$status", 500);'))
+        body.append(statement('return map;'))
+        return cls
 
-    def operation(self, op):
-        raise NotImplementedError
+    def Method(self, m):
+        result = statement('if (name == "%s") {}' % m.name.text)
+        cons = result.consequence.statements
+        cons.extend([p.apply(self, m.name.text) for p in m.params])
+        call = parse("expr", "self.impl.%s(%s)" % (m.name.text,
+                                                   ", ".join(["%s_%s" % (m.name.text, p.name.text)
+                                                              for p in m.params])))
+        rettype = m.type.path[0].text
+        if rettype == "void":
+            cons.append(ExprStmt(call))
+        else:
+            var = parse("name", "%s_result" % m.name.text)
+            cons.append(Local(Declaration(m.type.copy(), var, call)))
 
+            if rettype == "List":
+                cons.append(statement('idx  = 0;'))
+                while_ = statement('while (idx < %s.size()) {}' % var.text)
+                body = while_.body.statements
+                body.append(statement('list.add(%s.get(idx).toMap());' % var.text))
+                body.append(statement('idx = idx + 1;'))
+                cons.append(statement('map.put("$result", list);'))
+            else:
+                cons.append(statement('map = %s.toMap();' % var.text))
+        cons.append(statement('map.put("$status", 200);'))
+        cons.append(statement("return map;"))
+        return result
 
-class ServerMaker(Maker):
-
-    def module_body_lead_in(self):
-        self.module_head()
-
-        if self.did_module_body_lead_in:
-            return
-
-        self.out("class %s_server {" % self.module_name)
-        self.out.indent()
-
-        self.out("")
-        self.out("%s impl;" % self.module_name)
-        self.out("Map<String,Object> OK;")
-        self.out("String name;")
-        self.out("")
-
-        self.out("%s_server(%s impl) {" % (self.module_name, self.module_name))
-        with self.out.indentation():
-            self.out("self.impl = impl;")
-            self.out("self.OK = new Map<String,Object>();")
-            self.out("""self.name = "%s";""" % self.module_name)
-        self.out("}")
-
-        self.out("")
-
-        self.out("Map<String,Object> call(String name, Map<String,Object> args) {")
-        self.out.indent()
-        self.out('int idx;')
-        self.out('Map<String,Object> map = new Map<String,Object>();')
-        self.out('List<Map<String,Object>> list = new List<Map<String,Object>>();')
-        self.did_module_body_lead_in = True
-
-    def module_head(self):
-        if self.did_module_head:
-            return
-
-        self.out("interface %s {" % self.module_name)
-
-        with self.out.indentation():
-            for op in self.mod.definitions:
-                if isinstance(op, Operation):
-                    if op.description:
-                        pass
-                        #self.out('"""' + op.description.content.text[1:-1] + '"""')
-                    params = ["%s %s" % (p.type, p.name) for p in op.parameters]
-                    self.out("%s %s(%s);" % (op.type, op.name, ", ".join(params)))
-
-        self.out("}")
-        self.out("")
-
-        self.did_module_head = True
-
-    def module_tail(self):
-        self.out('map.put("$status", 500);')
-        self.out('return map;')
-        self.out.dedent()
-        self.out("}")
-        self.out.dedent()
-        self.out("}")
-
-    def operation(self, op):
-        self.module_body_lead_in()
-        self.ref.operation(op)
-        self.out('if (name == "%s") {' % op.name)
-        with self.out.indentation():
-            for p in op.parameters:
-                self.out('%s %s_%s = args.get("%s");' % (p.type, op.name, p.name, p.name))
-            result = "%s_result" % op.name
-            maybe_ret = "%s %s = " % (op.type, result) if op.type.name != "void" else ""
-            self.out("%sself.impl.%s(%s);" % (maybe_ret, op.name,
-                                             ", ".join(["%s_%s" % (op.name, p.name) for p in op.parameters])))
-            self.out('map.put("$status", 200);')
-            if maybe_ret:
-                if op.type.name == "List":
-                    self.out('idx = 0;')
-                    self.out('while (idx < %s.size()) {' % result)
-                    with self.out.indentation():
-                        self.out('list.add(%s.get(idx).toMap());' % result)
-                        self.out('idx = idx + 1;')
-                    self.out('}')
-                    self.out('map.put("$result", list);')
-                else:
-                    self.out('map.put("$result", %s.toMap());' % result)
-            self.out("return map;")
-        self.out("}")
-
-
-class ClientMaker(Maker):
-
-    def module_head(self):
-        if self.did_module_head:
-            return
-        self.did_module_head = True
-
-    def module_tail(self):
-        self.out.dedent()
-        self.out("}")
-
-    def module_body_lead_in(self):
-        self.module_head()
-
-        if self.did_module_body_lead_in:
-            return
-
-        self.out("interface RPCClient {")
-        with self.out.indentation():
-            self.out("Map<String,Object> call(String name, Map<String,Object> args);")
-        self.out("}")
-
-        self.out("")
-
-        self.out("class %s_client {" % self.module_name)
-        self.out.indent()
-
-        self.out("")
-        self.out("RPCClient rpc;")
-        self.out("String name;")
-        self.out("")
-
-        self.out("%s_client(RPCClient rpc) {" % self.module_name)
-        with self.out.indentation():
-            self.out("self.rpc = rpc;")
-            self.out("""self.name = "%s";""" % self.module_name)
-        self.out("}")
-        self.out("")
-
-        self.did_module_body_lead_in = True
-
-    def operation(self, op):
-        self.module_body_lead_in()
-        self.ref.operation(op)
-
-        if op.description:
-            pass
-            #self.out('"""' + op.description.content.text[1:-1] + '"""')
-        self.out("%s %s(%s) {" % (op.type, op.name, ", ".join(process_declarations(op.parameters))))
-        with self.out.indentation():
-            self.out("Map<String,Object> args = new Map<String,Object>();")
-            for param in op.parameters:
-                self.out('args.put("%s", %s);' % (param.name, param.name))
-            self.out('Map<String,Object> map = self.rpc.call("%s", args);' % op.name)
-            if op.type.name != "void":
-                if op.type.name == "List":
-                    self.out('%s result = new %s();' % (op.type, op.type))
-                    self.out('List<Map<String,Object>> list = map.get("$result");')
-                    self.out('if (list != null) {')
-                    with self.out.indentation():
-                        self.out('int idx = 0;')
-                        self.out('while (idx < list.size()) {')
-                        with self.out.indentation():
-                            self.out('result.add(new %s(list.get(idx)));' % op.type.parameters[0])
-                            self.out('idx = idx + 1;')
-                        self.out('}')
-                    self.out('}')
-                else:
-                    self.out('%s result = new %s(map);' % (op.type, op.type))
-                self.out("return result;")
-        self.out("}")
+    def Param(self, p, prefix):
+        decl = Declaration(p.type.copy(), parse("name", "%s_%s" % (prefix, p.name.text)),
+                           parse("expr", 'args.get("%s")' % p.name.text))
+        return Local(decl)

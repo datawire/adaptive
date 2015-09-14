@@ -13,15 +13,20 @@
 # limitations under the License.
 
 """
-Adaptive Code Generation by datawire.io
+Adaptive
 
-Usage: adaptive <sdl_filename> <target> ...
-       adaptive -h | --help
-       adaptive -V | --version
+Usage:
+  adaptive client [--java=<dir>] [--python=<dir>] [--ruby=<dir>] <file> ...
+  adaptive server [--java=<dir>] [--python=<dir>] [--ruby=<dir>] <file> ...
+  adaptive -h | --help
+  adaptive --version
 
-Targets: client (default)
-         async-client (not implemented)
-         server
+Options:
+  -h --help       Show this screen.
+  --version       Show version.
+  --java=<dir>    Emit java code to specified directory.
+  --python=<dir>  Emit python code to specified directory.
+  --ruby=<dir>    Emit ruby code to specified directory.
 """
 
 import sys
@@ -29,59 +34,53 @@ import sys
 from docopt import docopt
 
 import _metadata, generate
-from sdl import SDL
-
-supported_targets = "client", "server"
-
+from quark.compiler import Compiler, ParseError
+from quark.backend import Java
 
 def main(args):
-    if args["-V"] or args["--version"]:
-        sys.stderr.write("Adaptive Codegen %s\n" % _metadata.__version__)
+    if args["--version"]:
+        sys.stderr.write("Adaptive %s\n" % _metadata.__version__)
         return
-    sdl_filename = args["<sdl_filename>"]
-    targets_in = args["<target>"]
+    filenames = args["<file>"]
 
-    targets = set(["client"])
-    problems = False
-    for target in targets_in:
-        if target not in supported_targets:
-            sys.stderr.write("Intent %r not supported for target %r\n" % (intent, target_in))
-            problems = True
-        if not problems:
-            targets.add(target)
-    if problems:
-        return "Failed to parse some targets. See also: adaptive --help"
+    compiler = Compiler()
 
     try:
-        sdl_text = open(sdl_filename).read()
-    except IOError as exc:
-        sys.stderr.write(str(exc) + "\n")
-        return "Failed to open SDL file %r" % sdl_filename
+        for name in filenames:
+            with open(name, "rb") as fd:
+                compiler.parse(name, fd.read())
+    except IOError, e:
+        return e
+    except ParseError, e:
+        return e
+
+    if args["client"]:
+        transform = generate.ClientTransform()
+    elif args["server"]:
+        transform = generate.ServerTransform()
+    else:
+        assert False
+
+    compiler.root.traverse(generate.Generator(transform))
 
     try:
-        module = SDL().parse(sdl_text)
-    except Exception:
-        # FIXME: Do something smart here
-        raise
+        compiler.compile()
+    except CompileError, e:
+        return e
 
-    for target in targets:
-        if target == "client":
-            out_name = module.name + "_client.q"
-            sys.stderr.write("%s client --> %s\n" % (sdl_filename, out_name))
-            cm = generate.ClientMaker()
-            cm.module(module)
-            with open(out_name, "wb") as fd:
-                cm.dump(fd)
-        elif target == "server":
-            out_name = module.name + "_server.q"
-            sys.stderr.write("%s server --> %s\n" % (sdl_filename, out_name))
-            sm = generate.ServerMaker()
-            sm.module(module)
-            with open(out_name, "wb") as fd:
-                sm.dump(fd)
-        else:
-            raise ValueError("WTF? %s" % target)
+    java = args["--java"]
+    python = args["--python"]
+    ruby = args["--ruby"]
+    if python: return "python is not yet supported"
+    if ruby: return "ruby is not yet supported"
 
+    if java:
+        j = Java()
+        compiler.emit(j)
+        j.write(java)
+
+    if not java and not python and not ruby:
+        return "no output languages specified"
 
 def call_main():
     exit(main(docopt(__doc__)))
