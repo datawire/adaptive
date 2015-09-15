@@ -64,6 +64,14 @@ class Emitter(object):
         yield
         self.dedent()
 
+    @contextmanager
+    def block(self, start):
+        self.out("%s {" % start)
+        self.indent()
+        yield
+        self.dedent()
+        self.out("}")
+
     def dump(self, fd):
         return self.destination.dump(fd)
 

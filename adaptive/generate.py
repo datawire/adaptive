@@ -13,157 +13,156 @@
 # limitations under the License.
 
 from adaptive.emit import Emitter, RefEmitter
-from quark.parser import Parser
-from quark.ast import *
+from quark.ast import quark
 
-def parse(rule, text):
-    p = Parser()
-    return p.visit(p.grammar[rule].parse(text))
+def value(node):
+    code = Emitter()
+    with code.block('package %s' % quark(node.package.name)):
+        node.traverse(EncodeGenerator(code))
+        node.traverse(DecodeGenerator(code))
+    return code.dumps()
 
-def statement(text):
-    return parse("statement", text)
+def service_client(node):
+    code = Emitter()
+    with code.block('package %s' % quark(node.package.name)):
+        node.traverse(ClientGenerator(code))
+    return code.dumps()
 
-class MapConstructor(object):
-
-    def Class(self, cls):
-        return Constructor(cls.name.copy(), parse("parameters", "Map<String,Object> map"),
-                           Block([d.apply(self) for d in cls.definitions if isinstance(d, Field)]))
-
-    def Field(self, f):
-        return parse("statement", 'self.%s = map.get("%s");' % (f.name.text, f.name.text))
-
-class MapRenderer(object):
-
-    def Class(self, cls):
-        return Method(parse("type", "Map<String,Object>"), Name("toMap"), [],
-                      Block([statement("Map<String,Object> map = new Map<String,Object>();")] +
-                            [d.apply(self) for d in cls.definitions if isinstance(d, Field)] +
-                            [statement("return map;")]))
-
-    def Field(self, f):
-        return parse("statement", 'map.put("%s", self.%s);' % (f.name.text, f.name.text))
+def service_server(node):
+    code = Emitter()
+    with code.block('package %s' % quark(node.package.name)):
+        node.traverse(ServerGenerator(code))
+    return code.dumps()
 
 class Generator(object):
 
-    def __init__(self, transform):
-        self.classes = []
-        self.transform = transform
+    def __init__(self, emitter):
+        self.code = emitter
+
+class EncodeGenerator(Generator):
+
+    def visit_Class(self, cls):
+        name = quark(cls.name)
+        self.code('Map<String,Object> %s_toMap(%s object) {' % (name, name))
+        self.code.indent()
+        self.code('Map<String,Object> result = new Map<String,Object>();')
+
+    def visit_Field(self, f):
+        return self.code('result.put("%s", object.%s);' % (quark(f.name), quark(f.name)))
 
     def leave_Class(self, cls):
-        cls.definitions.append(cls.apply(MapConstructor()))
-        cls.definitions.append(cls.apply(MapRenderer()))
+        self.code('return result;')
+        self.code.dedent()
+        self.code('}')
 
-    def get_annotation(self, node, name):
-        for a in node.annotations:
-            if a.name.text == name:
-                return a
-        return None
+class DecodeGenerator(Generator):
+
+    def visit_Class(self, cls):
+        name = quark(cls.name)
+        self.code('%s %s_fromMap(Map<String,Object> map) {' % (name, name))
+        self.code.indent()
+        self.code('%s result = new %s();' % (name, name))
+
+    def visit_Field(self, f):
+        self.code('result.%s = map.get("%s");' % (quark(f.name), quark(f.name)))
+
+    def leave_Class(self, cls):
+        self.code('return result;')
+        self.code.dedent()
+        self.code('}')
+
+class ClientGenerator(Generator):
+
+    def visit_Interface(self, i):
+        with self.code.block("interface RPCClient"):
+            self.code("Map<String,Object> call(String name, Map<String,Object> args);")
+
+        self.code("class %sClient {" % i.name.text)
+        self.code.indent()
+        self.code("RPCClient rpc;")
 
     def leave_Interface(self, i):
-        if self.get_annotation(i, "service"):
-            cls = i.apply(self.transform)
-            self.classes.append(cls)
+        self.code.dedent()
+        self.code("}")
 
-    def leave_Primitive(self, p):
-        pass
+    def visit_Method(self, m):
+        self.code("%s %s(%s) {" % (m.type.quark(), m.name.quark(), quark(m.params)))
+        self.code.indent()
+        self.code("Map<String,Object> args = new Map<String,Object>();")
 
-    def leave_Package(self, p):
-        p.definitions.append(parse("class", """
-        interface RPCClient {
-            Map<String,Object> call(String name, Map<String,Object> args);
-        }
-        """))
-        p.definitions.extend(self.classes)
+    def visit_Param(self, p):
+        self.code('args.put("%s", %s);' % (quark(p.name), quark(p.name)))
 
-class ClientTransform(object):
-
-    def Interface(self, i):
-        return Class(parse("name", "%sClient" % i.name.text), (), None,
-                     [parse("field", "RPCClient rpc;")] +
-                     [d.apply(self) for d in i.definitions])
-
-    def Method(self, m):
-        result = m.copy()
-        body = [statement("Map<String,Object> args = new Map<String,Object>();")]
-        body.extend([p.apply(self) for p in m.params])
-        body.append(statement('Map<String,Object> map = self.rpc.call("%s", args);' % m.name.text))
-        tname = m.type.path[0].text
+    def leave_Method(self, m):
+        self.code('Map<String,Object> map = self.rpc.call("%s", args);' % quark(m.name))
+        tname = quark(m.type.path[0])
         if tname != "void":
-            new = Call(m.type.copy(), [])
-            body.append(Local(Declaration(m.type.copy(), Name("result"), new)))
             if tname == "List":
-                body.append(statement('List<Map<String,Object>> list = map.get("$result");'))
-                if_ = statement("if (list != null) {}")
-                body.append(if_)
-                cons = if_.consequence.statements
-                cons.append(statement('int idx = 0;'))
-                while_ = statement('while (idx < list.size()) {}')
-                cons.append(while_)
-                loop = while_.body.statements
-                loop.append(ExprStmt(Call(Attr(parse("var", "result"),
-                                               Name("add")),
-                                          [Call(m.type.parameters[0].copy(),
-                                                parse("exprs", "list.get(idx)"))])))
-                loop.append(statement('idx = idx + 1;'))
+                self.code('%s result = new %s();' % (quark(m.type), quark(m.type)))
+                self.code('List<Map<String,Object>> list = map.get("$result");')
+                with self.code.block('if (list != null)'):
+                    self.code('int idx = 0;')
+                    with self.code.block('while (idx < list.size())'):
+                        self.code('result.add(%s_fromMap(list.get(idx)));' % quark(m.type.parameters[0]))
+                        self.code('idx = idx + 1;')
             else:
-                new.args.append(parse("var", "map"))
-            body.append(statement("return result;"))
-        result.body = Block(body)
-        return result
+                self.code('%s result = %s_fromMap(map);' % (quark(m.type), quark(m.type)))
+            self.code('return result;')
+        self.code.dedent()
+        self.code('}')
 
-    def Param(self, p):
-        return statement('args.put("%s", %s);' % (p.name.text, p.name.text))
+class ServerGenerator(Generator):
 
-class ServerTransform(object):
+    def visit_Interface(self, i):
+        name = quark(i.name)
+        self.code('class %sServer {' % name)
+        self.code.indent()
+        self.code('%s impl;' % name)
+        with self.code.block('%sServer(%s impl)' % (name, name)):
+            self.code('self.impl = impl;')
+        self.code('Map<String,Object> call(String name, Map<String,Object> args) {')
+        self.code.indent()
+        self.code('int idx;')
+        self.code('Map<String,Object> map = new Map<String,Object>();')
+        self.code('List<Map<String,Object>> list = new List<Map<String,Object>>();')
 
-    def Interface(self, i):
-        cls = parse("class", """class %(name)sServer {
-            %(name)s impl;
+    def visit_Method(self, m):
+        self.code('if (name == "%s") {' % quark(m.name))
+        self.code.indent()
 
-            %(name)sServer(%(name)s impl) {
-                self.impl = impl;
-            }
-        }""" % {"name": i.name.text})
-        call = parse("method", """Map<String,Object> call(String name, Map<String,Object> args) {
-            int idx;
-            Map<String,Object> map = new Map<String,Object>();
-            List<Map<String,Object>> list = new List<Map<String,Object>>();
-        }""")
-        cls.definitions.append(call)
-        body = call.body.statements
-        body.extend([d.apply(self) for d in i.definitions])
-        body.append(statement('map.put("$status", 500);'))
-        body.append(statement('return map;'))
-        return cls
+    def visit_Param(self, p):
+        self.code('%s %s_%s = args.get("%s");' % (quark(p.type),
+                                                  quark(p.callable.name),
+                                                  quark(p.name),
+                                                  quark(p.name)))
 
-    def Method(self, m):
-        result = statement('if (name == "%s") {}' % m.name.text)
-        cons = result.consequence.statements
-        cons.extend([p.apply(self, m.name.text) for p in m.params])
-        call = parse("expr", "self.impl.%s(%s)" % (m.name.text,
-                                                   ", ".join(["%s_%s" % (m.name.text, p.name.text)
-                                                              for p in m.params])))
-        rettype = m.type.path[0].text
+    def leave_Method(self, m):
+        name = quark(m.name)
+        params = ", ".join(["%s_%s" % (name, quark(p.name)) for p in m.params])
+        call = 'self.impl.%s(%s);' % (name, params)
+        rettype = quark(m.type.path[0])
         if rettype == "void":
-            cons.append(ExprStmt(call))
+            self.code(call)
         else:
-            var = parse("name", "%s_result" % m.name.text)
-            cons.append(Local(Declaration(m.type.copy(), var, call)))
-
+            self.code('%s %s_result = %s' % (quark(m.type), name, call))
             if rettype == "List":
-                cons.append(statement('idx  = 0;'))
-                while_ = statement('while (idx < %s.size()) {}' % var.text)
-                body = while_.body.statements
-                body.append(statement('list.add(%s.get(idx).toMap());' % var.text))
-                body.append(statement('idx = idx + 1;'))
-                cons.append(statement('map.put("$result", list);'))
+                eltype = quark(m.type.parameters[0])
+                self.code('idx  = 0;')
+                with self.code.block('while (idx < %s_result.size())' % name):
+                    self.code('list.add(%s_toMap(%s_result.get(idx)));' % (eltype, name))
+                    self.code('idx = idx + 1;')
+                self.code('map.put("$result", list);')
             else:
-                cons.append(statement('map = %s.toMap();' % var.text))
-        cons.append(statement('map.put("$status", 200);'))
-        cons.append(statement("return map;"))
-        return result
+                self.code('map = %s_toMap(%s_result);' % (rettype, name))
+        self.code('map.put("$status", 200);')
+        self.code('return map;')
+        self.code.dedent()
+        self.code('}')
 
-    def Param(self, p, prefix):
-        decl = Declaration(p.type.copy(), parse("name", "%s_%s" % (prefix, p.name.text)),
-                           parse("expr", 'args.get("%s")' % p.name.text))
-        return Local(decl)
+    def leave_Interface(self, i):
+        self.code('map.put("$status", 500);')
+        self.code('return map;')
+        self.code.dedent()
+        self.code('}')
+        self.code.dedent()
+        self.code('}')

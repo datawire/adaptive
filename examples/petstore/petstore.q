@@ -5,6 +5,7 @@
 package petstore {
 
     @doc("Essential information about a pet.")
+    @value
     class Pet {
         int id;
         String name;

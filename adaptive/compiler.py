@@ -34,7 +34,7 @@ import sys
 from docopt import docopt
 
 import _metadata, generate
-from quark.compiler import Compiler, ParseError
+from quark.compiler import Compiler, ParseError, CompileError
 from quark.backend import Java
 
 def main(args):
@@ -43,7 +43,21 @@ def main(args):
         return
     filenames = args["<file>"]
 
+    java = args["--java"]
+    python = args["--python"]
+    ruby = args["--ruby"]
+    if python: return "python is not yet supported"
+    if ruby: return "ruby is not yet supported"
+
     compiler = Compiler()
+    compiler.annotator("value", generate.value)
+
+    if args["client"]:
+        compiler.annotator("service", generate.service_client)
+    elif args["server"]:
+        compiler.annotator("service", generate.service_server)
+    else:
+        assert False
 
     try:
         for name in filenames:
@@ -53,26 +67,15 @@ def main(args):
         return e
     except ParseError, e:
         return e
-
-    if args["client"]:
-        transform = generate.ClientTransform()
-    elif args["server"]:
-        transform = generate.ServerTransform()
-    else:
-        assert False
-
-    compiler.root.traverse(generate.Generator(transform))
+    finally:
+        if java:
+            compiler.write(java)
 
     try:
         compiler.compile()
     except CompileError, e:
         return e
 
-    java = args["--java"]
-    python = args["--python"]
-    ruby = args["--ruby"]
-    if python: return "python is not yet supported"
-    if ruby: return "ruby is not yet supported"
 
     if java:
         j = Java()
