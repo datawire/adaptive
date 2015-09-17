@@ -39,6 +39,11 @@ class Generator(object):
     def __init__(self, emitter):
         self.code = emitter
 
+    def get_annotation(self, node, name):
+        for ann in node.annotations:
+            if quark(ann.name) == name:
+                return ann
+
 class EncodeGenerator(Generator):
 
     def visit_Class(self, cls):
@@ -77,9 +82,39 @@ class ClientGenerator(Generator):
         with self.code.block("interface RPCClient"):
             self.code("Map<String,Object> call(String name, Map<String,Object> args);")
 
+        with self.code.block("class CacheEntry"):
+            self.code("Map<String,Object> result;")
+            self.code("long timestamp = 0;")
+
         self.code("class %sClient {" % i.name.text)
         self.code.indent()
         self.code("RPCClient rpc;")
+        self.code("""
+
+        Map<Object,Map<String,Object>> index_entries = new Map<Object,Map<String,Object>>();
+
+        Map<String,Object> index(String name, Map<String,Object> args) {
+            // XXX: nothing updates the index right now!!!
+            return index_entries.get(args);
+        }
+
+        Map<Object,CacheEntry> cache_entries = new Map<Object,CacheEntry>();
+
+        Map<String,Object> cache(String name, Map<String,Object> args, long threshold) {
+            CacheEntry entry;
+            if (cache_entries.contains(args)) {
+                entry = cache_entries.get(args);
+            } else {
+                entry = new CacheEntry();
+                cache_entries.put(args, entry);
+            }
+            if ((now() - entry.timestamp) > threshold) {
+                entry.result = self.rpc.call(name, args);
+                entry.timestamp = now();
+            }
+            return entry.result;
+        }
+        """)
 
     def leave_Interface(self, i):
         self.code.dedent()
@@ -94,7 +129,18 @@ class ClientGenerator(Generator):
         self.code('args.put("%s", %s);' % (quark(p.name), quark(p.name)))
 
     def leave_Method(self, m):
-        self.code('Map<String,Object> map = self.rpc.call("%s", args);' % quark(m.name))
+        if self.get_annotation(m, "index"):
+            meth = "index"
+            extra = ""
+        elif self.get_annotation(m, "cache"):
+            ann = self.get_annotation(m, "cache")
+            meth = "cache"
+            extra = ", %s" % quark(ann.arguments, ", ")
+        else:
+            meth = "rpc.call"
+            extra = ""
+
+        self.code('Map<String,Object> map = self.%s("%s", args%s);' % (meth, quark(m.name), extra))
         tname = quark(m.type.path[0])
         if tname != "void":
             if tname == "List":
