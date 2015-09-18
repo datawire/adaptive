@@ -13,83 +13,83 @@
 # limitations under the License.
 
 from adaptive.emit import Emitter, RefEmitter
-from quark.ast import quark
+from quark.ast import code
 
 def value(node):
-    code = Emitter()
-    with code.block('package %s' % quark(node.package.name)):
-        node.traverse(EncodeGenerator(code))
-        node.traverse(DecodeGenerator(code))
-    return code.dumps()
+    out = Emitter()
+    with out.block('package %s' % code(node.package.name)):
+        node.traverse(EncodeGenerator(out))
+        node.traverse(DecodeGenerator(out))
+    return out.dumps()
 
 def service_client(node):
-    code = Emitter()
-    with code.block('package %s' % quark(node.package.name)):
-        node.traverse(ClientGenerator(code))
-    return code.dumps()
+    out = Emitter()
+    with out.block('package %s' % code(node.package.name)):
+        node.traverse(ClientGenerator(out))
+    return out.dumps()
 
 def service_server(node):
-    code = Emitter()
-    with code.block('package %s' % quark(node.package.name)):
-        node.traverse(ServerGenerator(code))
-    return code.dumps()
+    out = Emitter()
+    with out.block('package %s' % code(node.package.name)):
+        node.traverse(ServerGenerator(out))
+    return out.dumps()
 
 class Generator(object):
 
     def __init__(self, emitter):
-        self.code = emitter
+        self.out = emitter
 
     def get_annotation(self, node, name):
         for ann in node.annotations:
-            if quark(ann.name) == name:
+            if code(ann.name) == name:
                 return ann
 
 class EncodeGenerator(Generator):
 
     def visit_Class(self, cls):
-        name = quark(cls.name)
-        self.code('Map<String,Object> %s_toMap(%s object) {' % (name, name))
-        self.code.indent()
-        self.code('Map<String,Object> result = new Map<String,Object>();')
+        name = code(cls.name)
+        self.out('Map<String,Object> %s_toMap(%s object) {' % (name, name))
+        self.out.indent()
+        self.out('Map<String,Object> result = new Map<String,Object>();')
 
     def visit_Field(self, f):
-        return self.code('result.put("%s", object.%s);' % (quark(f.name), quark(f.name)))
+        return self.out('result.put("%s", object.%s);' % (code(f.name), code(f.name)))
 
     def leave_Class(self, cls):
-        self.code('return result;')
-        self.code.dedent()
-        self.code('}')
+        self.out('return result;')
+        self.out.dedent()
+        self.out('}')
 
 class DecodeGenerator(Generator):
 
     def visit_Class(self, cls):
-        name = quark(cls.name)
-        self.code('%s %s_fromMap(Map<String,Object> map) {' % (name, name))
-        self.code.indent()
-        self.code('%s result = new %s();' % (name, name))
+        name = code(cls.name)
+        self.out('%s %s_fromMap(Map<String,Object> map) {' % (name, name))
+        self.out.indent()
+        self.out('%s result = new %s();' % (name, name))
 
     def visit_Field(self, f):
-        self.code('result.%s = map.get("%s");' % (quark(f.name), quark(f.name)))
+        self.out('result.%s = map.get("%s");' % (code(f.name), code(f.name)))
 
     def leave_Class(self, cls):
-        self.code('return result;')
-        self.code.dedent()
-        self.code('}')
+        self.out('return result;')
+        self.out.dedent()
+        self.out('}')
 
 class ClientGenerator(Generator):
 
     def visit_Interface(self, i):
-        with self.code.block("interface RPCClient"):
-            self.code("Map<String,Object> call(String name, Map<String,Object> args);")
+        with self.out.block("interface RPCClient"):
+            self.out("Map<String,Object> call(String name, Map<String,Object> args);")
 
-        with self.code.block("class CacheEntry"):
-            self.code("Map<String,Object> result;")
-            self.code("long timestamp = 0;")
+        with self.out.block("class CacheEntry"):
+            self.out("Map<String,Object> result;")
+            self.out("long timestamp = 0;")
 
-        self.code("class %sClient {" % i.name.text)
-        self.code.indent()
-        self.code("RPCClient rpc;")
-        self.code("""
+        self.out("class %sClient {" % i.name.text)
+        self.out.indent()
+        self.out("RPCClient rpc;")
+        self.out("""
 
         Map<Object,Map<String,Object>> index_entries = new Map<Object,Map<String,Object>>();
 
@@ -117,16 +117,16 @@ class ClientGenerator(Generator):
         """)
 
     def leave_Interface(self, i):
-        self.code.dedent()
-        self.code("}")
+        self.out.dedent()
+        self.out("}")
 
     def visit_Method(self, m):
-        self.code("%s %s(%s) {" % (m.type.quark(), m.name.quark(), quark(m.params)))
-        self.code.indent()
-        self.code("Map<String,Object> args = new Map<String,Object>();")
+        self.out("%s %s(%s) {" % (m.type.code(), m.name.code(), code(m.params)))
+        self.out.indent()
+        self.out("Map<String,Object> args = new Map<String,Object>();")
 
     def visit_Param(self, p):
-        self.code('args.put("%s", %s);' % (quark(p.name), quark(p.name)))
+        self.out('args.put("%s", %s);' % (code(p.name), code(p.name)))
 
     def leave_Method(self, m):
         if self.get_annotation(m, "index"):
@@ -135,80 +135,80 @@ class ClientGenerator(Generator):
         elif self.get_annotation(m, "cache"):
             ann = self.get_annotation(m, "cache")
             meth = "cache"
-            extra = ", %s" % quark(ann.arguments, ", ")
+            extra = ", %s" % code(ann.arguments, ", ")
         else:
             meth = "rpc.call"
             extra = ""
 
-        self.code('Map<String,Object> map = self.%s("%s", args%s);' % (meth, quark(m.name), extra))
-        tname = quark(m.type.path[0])
+        self.out('Map<String,Object> map = self.%s("%s", args%s);' % (meth, code(m.name), extra))
+        tname = code(m.type.path[0])
         if tname != "void":
             if tname == "List":
-                self.code('%s result = new %s();' % (quark(m.type), quark(m.type)))
-                self.code('List<Map<String,Object>> list = map.get("$result");')
-                with self.code.block('if (list != null)'):
-                    self.code('int idx = 0;')
-                    with self.code.block('while (idx < list.size())'):
-                        self.code('result.add(%s_fromMap(list.get(idx)));' % quark(m.type.parameters[0]))
-                        self.code('idx = idx + 1;')
+                self.out('%s result = new %s();' % (code(m.type), code(m.type)))
+                self.out('List<Map<String,Object>> list = map.get("$result");')
+                with self.out.block('if (list != null)'):
+                    self.out('int idx = 0;')
+                    with self.out.block('while (idx < list.size())'):
+                        self.out('result.add(%s_fromMap(list.get(idx)));' % code(m.type.parameters[0]))
+                        self.out('idx = idx + 1;')
             else:
-                self.code('%s result = %s_fromMap(map);' % (quark(m.type), quark(m.type)))
-            self.code('return result;')
-        self.code.dedent()
-        self.code('}')
+                self.out('%s result = %s_fromMap(map);' % (code(m.type), code(m.type)))
+            self.out('return result;')
+        self.out.dedent()
+        self.out('}')
 
 class ServerGenerator(Generator):
 
     def visit_Interface(self, i):
-        name = quark(i.name)
-        self.code('class %sServer {' % name)
-        self.code.indent()
-        self.code('%s impl;' % name)
-        with self.code.block('%sServer(%s impl)' % (name, name)):
-            self.code('self.impl = impl;')
-        self.code('Map<String,Object> call(String name, Map<String,Object> args) {')
-        self.code.indent()
-        self.code('int idx;')
-        self.code('Map<String,Object> map = new Map<String,Object>();')
-        self.code('List<Map<String,Object>> list = new List<Map<String,Object>>();')
+        name = code(i.name)
+        self.out('class %sServer {' % name)
+        self.out.indent()
+        self.out('%s impl;' % name)
+        with self.out.block('%sServer(%s impl)' % (name, name)):
+            self.out('self.impl = impl;')
+        self.out('Map<String,Object> call(String name, Map<String,Object> args) {')
+        self.out.indent()
+        self.out('int idx;')
+        self.out('Map<String,Object> map = new Map<String,Object>();')
+        self.out('List<Map<String,Object>> list = new List<Map<String,Object>>();')
 
     def visit_Method(self, m):
-        self.code('if (name == "%s") {' % quark(m.name))
-        self.code.indent()
+        self.out('if (name == "%s") {' % code(m.name))
+        self.out.indent()
 
     def visit_Param(self, p):
-        self.code('%s %s_%s = args.get("%s");' % (quark(p.type),
-                                                  quark(p.callable.name),
-                                                  quark(p.name),
-                                                  quark(p.name)))
+        self.out('%s %s_%s = args.get("%s");' % (code(p.type),
+                                                  code(p.callable.name),
+                                                  code(p.name),
+                                                  code(p.name)))
 
     def leave_Method(self, m):
-        name = quark(m.name)
-        params = ", ".join(["%s_%s" % (name, quark(p.name)) for p in m.params])
+        name = code(m.name)
+        params = ", ".join(["%s_%s" % (name, code(p.name)) for p in m.params])
         call = 'self.impl.%s(%s);' % (name, params)
-        rettype = quark(m.type.path[0])
+        rettype = code(m.type.path[0])
         if rettype == "void":
-            self.code(call)
+            self.out(call)
         else:
-            self.code('%s %s_result = %s' % (quark(m.type), name, call))
+            self.out('%s %s_result = %s' % (code(m.type), name, call))
             if rettype == "List":
-                eltype = quark(m.type.parameters[0])
-                self.code('idx  = 0;')
-                with self.code.block('while (idx < %s_result.size())' % name):
-                    self.code('list.add(%s_toMap(%s_result.get(idx)));' % (eltype, name))
-                    self.code('idx = idx + 1;')
-                self.code('map.put("$result", list);')
+                eltype = code(m.type.parameters[0])
+                self.out('idx  = 0;')
+                with self.out.block('while (idx < %s_result.size())' % name):
+                    self.out('list.add(%s_toMap(%s_result.get(idx)));' % (eltype, name))
+                    self.out('idx = idx + 1;')
+                self.out('map.put("$result", list);')
             else:
-                self.code('map = %s_toMap(%s_result);' % (rettype, name))
-        self.code('map.put("$status", 200);')
-        self.code('return map;')
-        self.code.dedent()
-        self.code('}')
+                self.out('map = %s_toMap(%s_result);' % (rettype, name))
+        self.out('map.put("$status", 200);')
+        self.out('return map;')
+        self.out.dedent()
+        self.out('}')
 
     def leave_Interface(self, i):
-        self.code('map.put("$status", 500);')
-        self.code('return map;')
-        self.code.dedent()
-        self.code('}')
-        self.code.dedent()
-        self.code('}')
+        self.out('map.put("$status", 500);')
+        self.out('return map;')
+        self.out.dedent()
+        self.out('}')
+        self.out.dedent()
+        self.out('}')
