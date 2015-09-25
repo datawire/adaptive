@@ -16,8 +16,8 @@
 Adaptive
 
 Usage:
-  adaptive client [--java=<dir>] [--python=<dir>] [--ruby=<dir>] <file> ...
-  adaptive server [--java=<dir>] [--python=<dir>] [--ruby=<dir>] <file> ...
+  adaptive client [--java=<dir>] [--python=<dir>] <file> ...
+  adaptive server [--java=<dir>] [--python=<dir>] <file> ...
   adaptive -h | --help
   adaptive --version
 
@@ -26,7 +26,6 @@ Options:
   --version       Show version.
   --java=<dir>    Emit java code to specified directory.
   --python=<dir>  Emit python code to specified directory.
-  --ruby=<dir>    Emit ruby code to specified directory.
 """
 
 import sys
@@ -35,19 +34,12 @@ from docopt import docopt
 
 import _metadata, generate
 from quark.compiler import Compiler, ParseError, CompileError
-from quark.backend import Java
+from quark.backend import Java, Python
 
 def main(args):
     if args["--version"]:
         sys.stderr.write("Adaptive %s\n" % _metadata.__version__)
         return
-    filenames = args["<file>"]
-
-    java = args["--java"]
-    python = args["--python"]
-    ruby = args["--ruby"]
-    if python: return "python is not yet supported"
-    if ruby: return "ruby is not yet supported"
 
     compiler = Compiler()
     compiler.annotator("value", generate.value)
@@ -59,30 +51,24 @@ def main(args):
     else:
         assert False
 
+    java = args["--java"]
+    python = args["--python"]
+    if java: compiler.emitter(Java, java)
+    if python: compiler.emitter(Python, python)
+
     try:
-        for name in filenames:
+        for name in args["<file>"]:
             with open(name, "rb") as fd:
                 compiler.parse(name, fd.read())
+        compiler.compile()
     except IOError, e:
         return e
     except ParseError, e:
         return e
-    finally:
-        if java:
-            compiler.write(java)
-
-    try:
-        compiler.compile()
     except CompileError, e:
         return e
 
-
-    if java:
-        j = Java()
-        compiler.emit(j)
-        j.write(java)
-
-    if not java and not python and not ruby:
+    if not java and not python:
         return "no output languages specified"
 
 def call_main():
