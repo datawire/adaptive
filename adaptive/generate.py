@@ -53,7 +53,7 @@ class EncodeGenerator(Generator):
         self.out('Map<String,Object> result = new Map<String,Object>();')
 
     def visit_Field(self, f):
-        return self.out('result.put("%s", object.%s);' % (code(f.name), code(f.name)))
+        return self.out('result["%s"] = object.%s;' % (code(f.name), code(f.name)))
 
     def leave_Class(self, cls):
         self.out('return result;')
@@ -69,7 +69,7 @@ class DecodeGenerator(Generator):
         self.out('%s result = new %s();' % (name, name))
 
     def visit_Field(self, f):
-        self.out('result.%s = map.get("%s");' % (code(f.name), code(f.name)))
+        self.out('result.%s = map["%s"];' % (code(f.name), code(f.name)))
 
     def leave_Class(self, cls):
         self.out('return result;')
@@ -95,7 +95,7 @@ class ClientGenerator(Generator):
 
         Map<String,Object> index(String name, Map<String,Object> args) {
             // XXX: nothing updates the index right now!!!
-            return index_entries.get(args);
+            return index_entries[args];
         }
 
         Map<Object,CacheEntry> cache_entries = new Map<Object,CacheEntry>();
@@ -103,10 +103,10 @@ class ClientGenerator(Generator):
         Map<String,Object> cache(String name, Map<String,Object> args, long threshold) {
             CacheEntry entry;
             if (cache_entries.contains(args)) {
-                entry = cache_entries.get(args);
+                entry = cache_entries[args];
             } else {
                 entry = new CacheEntry();
-                cache_entries.put(args, entry);
+                cache_entries[args] = entry;
             }
             if ((now() - entry.timestamp) > threshold) {
                 entry.result = self.rpc.call(name, args);
@@ -126,7 +126,7 @@ class ClientGenerator(Generator):
         self.out("Map<String,Object> args = new Map<String,Object>();")
 
     def visit_Param(self, p):
-        self.out('args.put("%s", %s);' % (code(p.name), code(p.name)))
+        self.out('args["%s"] = %s;' % (code(p.name), code(p.name)))
 
     def leave_Method(self, m):
         if self.get_annotation(m, "index"):
@@ -145,11 +145,11 @@ class ClientGenerator(Generator):
         if tname != "void":
             if tname == "List":
                 self.out('%s result = new %s();' % (code(m.type), code(m.type)))
-                self.out('List<Map<String,Object>> list = map.get("$result");')
+                self.out('List<Map<String,Object>> list = map["$result"];')
                 with self.out.block('if (list != null)'):
                     self.out('int idx = 0;')
                     with self.out.block('while (idx < list.size())'):
-                        self.out('result.add(%s_fromMap(list.get(idx)));' % code(m.type.parameters[0]))
+                        self.out('result.add(%s_fromMap(list[idx]));' % code(m.type.parameters[0]))
                         self.out('idx = idx + 1;')
             else:
                 self.out('%s result = %s_fromMap(map);' % (code(m.type), code(m.type)))
@@ -177,7 +177,7 @@ class ServerGenerator(Generator):
         self.out.indent()
 
     def visit_Param(self, p):
-        self.out('%s %s_%s = args.get("%s");' % (code(p.type),
+        self.out('%s %s_%s = args["%s"];' % (code(p.type),
                                                   code(p.callable.name),
                                                   code(p.name),
                                                   code(p.name)))
@@ -195,18 +195,18 @@ class ServerGenerator(Generator):
                 eltype = code(m.type.parameters[0])
                 self.out('idx  = 0;')
                 with self.out.block('while (idx < %s_result.size())' % name):
-                    self.out('list.add(%s_toMap(%s_result.get(idx)));' % (eltype, name))
+                    self.out('list.add(%s_toMap(%s_result[idx]));' % (eltype, name))
                     self.out('idx = idx + 1;')
-                self.out('map.put("$result", list);')
+                self.out('map["$result"] = list;')
             else:
                 self.out('map = %s_toMap(%s_result);' % (rettype, name))
-        self.out('map.put("$status", 200);')
+        self.out('map["$status"] = 200;')
         self.out('return map;')
         self.out.dedent()
         self.out('}')
 
     def leave_Interface(self, i):
-        self.out('map.put("$status", 500);')
+        self.out('map["$status"] = 500;')
         self.out('return map;')
         self.out.dedent()
         self.out('}')
